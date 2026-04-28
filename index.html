@@ -760,15 +760,20 @@ function buildSystemPrompt() {
 }
 
 function buildAnalysisPrompt(studentText, aiJpReply) {
-  const studentLine = studentText ? ('學生說的話：' + studentText) : '';
-  const grammarInstr = studentText
-    ? '判斷學生說的是否正確，正確就寫「正確」，有錯誤就說明並給出正確說法'
-    : '正確';
-  var prompt = '你是日語教學助手，請完成以下兩項，格式固定：';
-  prompt += 'AI說的日文：' + aiJpReply;
-  if (studentLine) { prompt += ' ' + studentLine; }
-  prompt += ' 請輸出：中文翻譯：（把上面AI說的日文完整翻譯）語法檢查：（' + grammarInstr + '）';
-  return prompt;
+  var lines = [];
+  lines.push('你是日語教學助手，請嚴格依照格式回覆。');
+  lines.push('');
+  lines.push('AI說的日文：' + aiJpReply);
+  if (studentText) { lines.push('學生說的話：' + studentText); }
+  lines.push('');
+  lines.push('請用繁體中文回覆以下兩項（格式固定不可更改）：');
+  lines.push('中文翻譯：把AI說的日文完整翻譯成中文（必須完整）');
+  if (studentText) {
+    lines.push('語法檢查：學生說的是否正確？正確就只寫「正確」，有錯誤就說明並給正確說法');
+  } else {
+    lines.push('語法檢查：正確');
+  }
+  return lines.join('\n');
 }
 
 
