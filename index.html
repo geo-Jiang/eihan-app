@@ -753,14 +753,9 @@ function switchHome(id, el) {
 function buildSystemPrompt() {
   const diff = document.getElementById('difficulty').value;
   const diffMap = { easy:'初級（N5程度）', mid:'中級（N3程度）', hard:'高級（N1程度）' };
-  return `你是永漢日語補習班的 AI 日語會話練習助手。
-主題：${currentTopic.name}（${currentTopic.system}）
-程度：${diffMap[diff]}
-嚴格規則：
-1. 每次只輸出一句日文，不可以連續說多句
-2. 不要加任何中文、標號、說明
-3. 句子要簡短自然，最多20個字
-4. 只有純日文，不含任何其他內容`;
+  return `你是日語會話練習助手。
+主題：${currentTopic.name}　程度：${diffMap[diff]}
+輸出規則：只輸出一句日文，禁止輸出多句。`;
 }
 
 function buildAnalysisPrompt(studentText, aiJpReply) {
@@ -863,7 +858,7 @@ async function getAnalysis(studentText, jpReply) {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{role:'user', parts:[{text: buildAnalysisPrompt(studentText, jpReply)}]}],
-        generationConfig:{temperature:0.2, maxOutputTokens:800}
+        generationConfig:{temperature:0.2, maxOutputTokens:1000}
       })
     });
     if (!res.ok) return {zh:'', grammar:''};
