@@ -1180,6 +1180,21 @@ async function sendVoiceMessage(text) {
 }
 
 
+function extractJpOnly(text) {
+  const lines = text.split('\n');
+  const jpLines = [];
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+    if (t.includes('中文翻譯') || t.includes('翻譯：') || t.includes('翻譯:') ||
+        t.includes('語法提醒') || t.includes('語法：')) break;
+    const cjk = (t.match(/[一-鿿]/g) || []).length;
+    if (jpLines.length > 0 && cjk / t.length > 0.5) break;
+    jpLines.push(t);
+  }
+  return jpLines.join('　').trim() || text.split('\n')[0];
+}
+
 function speakAndListen(text) {
   if (!window.speechSynthesis) { setVoiceState('idle'); return; }
   const jpText = extractJpOnly(text);
