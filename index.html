@@ -854,32 +854,30 @@ async function getAnalysis(studentText, jpReply) {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{role:'user', parts:[{text: buildAnalysisPrompt(studentText, jpReply)}]}],
-        generationConfig:{temperature:0.3, maxOutputTokens:300}
+        generationConfig:{temperature:0.3, maxOutputTokens:400}
       })
     });
     if (!res.ok) return {zh:'', grammar:''};
     const data = await res.json();
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    // Split into lines and find zh/grammar sections
-    const lines = raw.split('\n');
-    let zh = '', grammar = '', cur = '';
-    for (const line of lines) {
-      const t = line.trim();
-      if (!t) continue;
-      if (t.startsWith('中文翻譯')) {
-        cur = 'zh';
-        zh += t.replace(/^中文翻譯[：:]\s*/, '').trim();
-      } else if (t.startsWith('語法檢查')) {
-        cur = 'grammar';
-        grammar += t.replace(/^語法檢查[：:]\s*/, '').trim();
-      } else if (cur === 'zh') {
-        zh += '　' + t;
-      } else if (cur === 'grammar') {
-        grammar += '　' + t;
-      }
+    // Find 中文翻譯 section - grab everything until 語法檢查 or end
+    let zh = '', grammar = '';
+    const zhStart = raw.search(/中文翻譯[：:]/);
+    const grammarStart = raw.search(/語法檢查[：:]/);
+    if (zhStart !== -1) {
+      const zhRaw = grammarStart !== -1
+        ? raw.substring(zhStart, grammarStart)
+        : raw.substring(zhStart);
+      zh = zhRaw.replace(/^中文翻譯[：:]\s*/m, '').replace(/
+/g, '').trim();
     }
-    const cleanGrammar = grammar.replace(/正確[✓✔]?/g, '').trim();
-    return { zh: zh.trim(), grammar: cleanGrammar };
+    if (grammarStart !== -1) {
+      grammar = raw.substring(grammarStart)
+        .replace(/^語法檢查[：:]\s*/m, '').replace(/
+/g, ' ').trim();
+    }
+    const isCorrect = grammar.includes('正確') && grammar.length < 10;
+    return { zh, grammar: isCorrect ? '' : grammar };
   } catch(e) {
     return {zh:'', grammar:''};
   }
