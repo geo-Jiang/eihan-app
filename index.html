@@ -750,35 +750,26 @@ function switchHome(id, el) {
 }
 
 // ── AI CHAT ──
-function buildSystemPrompt(isVoiceMode = false) {
+function buildSystemPrompt() {
   const diff = document.getElementById('difficulty').value;
   const diffMap = { easy:'初級（N5程度）', mid:'中級（N3程度）', hard:'高級（N1程度）' };
-
-  const basePrompt = `你是永漢日語補習班的 AI 日語會話練習助手，專門幫助台灣學生練習日語口語。
-目前練習主題：${currentTopic.name}（${currentTopic.system}）
-學生程度：${diffMap[diff]}
-
-每次回覆必須嚴格遵守以下格式（缺一不可）：
-第一行：純日文回應（簡短自然，符合${diffMap[diff]}程度）
-第二行：中文翻譯：加上第一行日文的完整中文意思
-第三行：只在學生說錯時才加，語法提醒：加上錯誤說明與正確說法
-
-格式範例（正確示範）：
-はじめまして！どうぞよろしくお願いします。
-中文翻譯：你好！請多多關照。
-
-格式範例（有錯誤時）：
-そうですね。お名前は何ですか？
-中文翻譯：原來如此。請問您叫什麼名字呢？
-語法提醒：「私はこうです」不夠自然，建議說「私の名前はこうです」
-
-注意事項：
-- 絕對不能省略「中文翻譯：」這一行
-- 日文和中文翻譯必須分兩行，不可以混在同一行
-- 語法提醒只在學生有明確錯誤時才加，不要每次都加`;
-
-  return basePrompt;
+  return `你是永漢日語補習班的 AI 日語會話練習助手。
+主題：${currentTopic.name}（${currentTopic.system}）
+程度：${diffMap[diff]}
+規則：每次回覆只輸出日文句子，不要加任何中文、標號或說明。只有純日文。`;
 }
+
+function buildAnalysisPrompt(studentText, aiJpReply) {
+  return `你是日語教學助手，請針對以下學生的日文發言進行分析。
+
+學生說的話：「${studentText}」
+AI的日文回覆：「${aiJpReply}」
+
+請用繁體中文輸出以下兩項（格式固定，不可更改）：
+中文翻譯：（把AI說的日文翻譯成中文）
+語法檢查：（判斷學生說的話是否正確。如果正確，寫「正確✓」；如果有錯誤，說明錯誤並給出正確說法）`;
+}
+
 
 async function startAISession() {
   document.getElementById('aiWelcome').style.display = 'none';
@@ -793,21 +784,22 @@ async function startAISession() {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[
-          {role:'user', parts:[{text: buildSystemPrompt(voiceMode)}]},
-          {role:'model', parts:[{text: voiceMode ? '了解，語音模式，我只會用日文回覆。' : '了解，我會按照規則進行日語對話練習。'}]},
+          {role:'user', parts:[{text: buildSystemPrompt()}]},
+          {role:'model', parts:[{text:'了解，我只用日文回覆。'}]},
           {role:'user', parts:[{text: initText}]}
         ],
-        generationConfig:{temperature:0.8, maxOutputTokens:400}
+        generationConfig:{temperature:0.8, maxOutputTokens:200}
       })
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
     const data = await res.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!reply) throw new Error('Empty response');
-    conversationHistory.push({role:'model', parts:[{text:reply}]});
+    const jpReply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!jpReply) throw new Error('Empty response');
+    conversationHistory.push({role:'model', parts:[{text: jpReply}]});
     removeTyping();
-    addAIMessage(reply);
-    if (voiceMode) speakAndListen(reply);
+    const initAnalysis = await getAnalysis('', jpReply);
+    addAIMessageWithAnalysis(jpReply, initAnalysis);
+    if (voiceMode) speakAndListen(jpReply);
   } catch(e) {
     removeTyping();
     console.error('startAISession error:', e);
@@ -828,30 +820,56 @@ async function sendMessage() {
   showTyping();
   try {
     const msgs = [
-      {role:'user', parts:[{text: buildSystemPrompt(false)}]},
-      {role:'model', parts:[{text:'了解，我會按照規則進行日語對話練習。'}]}
+      {role:'user', parts:[{text: buildSystemPrompt()}]},
+      {role:'model', parts:[{text:'了解，我只用日文回覆。'}]}
     ];
     for (const m of conversationHistory) { msgs.push(m); }
     const res = await fetch(GEMINI_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({contents: msgs, generationConfig:{temperature:0.8, maxOutputTokens:600}})
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contents: msgs, generationConfig:{temperature:0.8, maxOutputTokens:200}})
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
     const data = await res.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!reply) throw new Error('Empty response');
-    conversationHistory.push({role:'model', parts:[{text:reply}]});
+    const jpReply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!jpReply) throw new Error('Empty response');
+    conversationHistory.push({role:'model', parts:[{text: jpReply}]});
     removeTyping();
-    addAIMessage(reply);
+    // Get translation + grammar analysis separately
+    const analysis = await getAnalysis(text, jpReply);
+    addAIMessageWithAnalysis(jpReply, analysis);
   } catch(e) {
     removeTyping();
-    addAIMessage('エラー：' + e.message + '\n\n【中文翻譯】錯誤：' + e.message);
+    addAIMessageWithAnalysis('エラーが発生しました。', {zh:'發生錯誤，請重試。', grammar:''});
+    console.error(e);
   } finally {
     aiIsLoading = false;
     document.getElementById('sendBtn').disabled = false;
   }
 }
+
+async function getAnalysis(studentText, jpReply) {
+  try {
+    const res = await fetch(GEMINI_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{role:'user', parts:[{text: buildAnalysisPrompt(studentText, jpReply)}]}],
+        generationConfig:{temperature:0.3, maxOutputTokens:200}
+      })
+    });
+    if (!res.ok) return {zh:'', grammar:''};
+    const data = await res.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const zhMatch = raw.match(/中文翻譯[：:]\s*(.+)/);
+    const grammarMatch = raw.match(/語法檢查[：:]\s*(.+)/s);
+    return {
+      zh: zhMatch ? zhMatch[1].trim() : '',
+      grammar: grammarMatch ? grammarMatch[1].trim().replace('正確✓','') : ''
+    };
+  } catch(e) {
+    return {zh:'', grammar:''};
+  }
+}
+
 
 async function requestHint() {
   if (aiIsLoading) return;
@@ -914,17 +932,16 @@ function parseMsg(text) {
   }
   return { jp: jp.trim(), zh: zh.trim(), grammar: grammar.trim() };
 }
-function addAIMessage(text) {
+function addAIMessageWithAnalysis(jpText, analysis) {
   const area = document.getElementById('messagesArea');
-  const showTrans = document.getElementById('showTranslation').value==='yes';
-  const p = parseMsg(text);
-  const jpText = p.jp || text;
   const msgId = 'msg-' + Date.now();
   const row = document.createElement('div'); row.className = 'msg-row';
   let html = '<div class="msg-avatar avatar-ai">&#x1F916;</div><div class="msg-content"><div class="msg-bubble bubble-ai"><div class="msg-jp">' + jpText + '</div>';
-  if (showTrans && p.zh) html += '<div class="msg-zh">' + p.zh + '</div>';
+  if (analysis.zh) html += '<div class="msg-zh">' + analysis.zh + '</div>';
   html += '</div>';
-  if (p.grammar) html += '<div class="feedback-box"><div class="fb-label">&#x8A9E;&#x6CD5;&#x63D0;&#x9192;</div>' + p.grammar + '</div>';
+  if (analysis.grammar && analysis.grammar.trim() && !analysis.grammar.includes('正確')) {
+    html += '<div class="feedback-box"><div class="fb-label">&#x8A9E;&#x6CD5;&#x63D0;&#x9192;</div>' + analysis.grammar + '</div>';
+  }
   html += '<div style="display:flex;align-items:center;gap:8px;margin-top:2px"><div class="msg-time">' + getTime() + '</div><button class="tts-btn" data-jp="' + msgId + '">&#x1F50A; &#x6717;&#x8B80;</button></div></div>';
   row.innerHTML = html;
   const ttsBtn = row.querySelector('.tts-btn');
@@ -932,6 +949,13 @@ function addAIMessage(text) {
   area.appendChild(row); area.scrollTop = area.scrollHeight;
   if (autoTTS && !voiceMode) speakJapanese(jpText);
 }
+
+function addAIMessage(text) {
+  const p = parseMsg(text);
+  addAIMessageWithAnalysis(p.jp || text, {zh: p.zh, grammar: p.grammar});
+}
+
+
 function addFeedbackMessage(text) {
   const area = document.getElementById('messagesArea');
   const row = document.createElement('div'); row.className = 'msg-row';
@@ -1129,49 +1153,30 @@ async function sendVoiceMessage(text) {
   setVoiceState('thinking');
   try {
     const msgs = [
-      {role:'user', parts:[{text: buildSystemPrompt(true)}]},
-      {role:'model', parts:[{text:'了解，語音模式，我只用日文回覆，不輸出任何中文。'}]}
+      {role:'user', parts:[{text: buildSystemPrompt()}]},
+      {role:'model', parts:[{text:'了解，我只用日文回覆。'}]}
     ];
     for (const m of conversationHistory) { msgs.push(m); }
     const res = await fetch(GEMINI_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        contents: msgs,
-        generationConfig:{temperature:0.8, maxOutputTokens:300}
-      })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contents: msgs, generationConfig:{temperature:0.8, maxOutputTokens:200}})
     });
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error?.message || 'API error ' + res.status);
-    }
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
     const data = await res.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!reply) throw new Error('Empty response from Gemini');
-    conversationHistory.push({role:'model', parts:[{text:reply}]});
-    addAIMessage(reply);
-    speakAndListen(reply);
+    const jpReply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!jpReply) throw new Error('Empty response');
+    conversationHistory.push({role:'model', parts:[{text: jpReply}]});
+    // Get translation + grammar analysis separately
+    const analysis = await getAnalysis(text, jpReply);
+    addAIMessageWithAnalysis(jpReply, analysis);
+    speakAndListen(jpReply);
   } catch(e) {
     setVoiceState('idle');
-    addAIMessage('エラー：' + e.message);
+    addAIMessageWithAnalysis('すみません、もう一度お願いします。', {zh:'抱歉，請再說一次。', grammar:''});
+    console.error(e);
   } finally {
     aiIsLoading = false;
   }
-}
-
-function extractJpOnly(text) {
-  const lines = text.split('\n');
-  const jpLines = [];
-  for (const line of lines) {
-    const t = line.trim();
-    if (!t) continue;
-    if (t.includes('中文翻譯') || t.includes('翻譯：') || t.includes('翻譯:') ||
-        t.includes('語法提醒') || t.includes('語法：')) break;
-    const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length;
-    if (jpLines.length > 0 && cjk / t.length > 0.5) break;
-    jpLines.push(t);
-  }
-  return jpLines.join('　').trim() || text.split('\n')[0];
 }
 
 
