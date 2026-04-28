@@ -754,32 +754,30 @@ function buildSystemPrompt(isVoiceMode = false) {
   const diff = document.getElementById('difficulty').value;
   const diffMap = { easy:'初級（N5程度）', mid:'中級（N3程度）', hard:'高級（N1程度）' };
 
-  if (isVoiceMode) {
-    return `你是永漢日語補習班的 AI 日語會話練習助手，幫助台灣學生練習日語口語。
-主題：${currentTopic.name}（${currentTopic.system}）
-程度：${diffMap[diff]}
-每次回覆必須嚴格遵守以下格式，不可省略：
-第一行：純日文回應（簡短自然的對話句）
-第二行：中文翻譯：加上第一行日文的中文意思
-有語法錯誤時才加第三行：語法提醒：加上說明
-範例：
-はじめまして！どうぞよろしくお願いします。
-中文翻譯：你好！請多多關照。`;
-  }
-
-  return `你是永漢日語補習班的 AI 日語會話練習助手，專門幫助台灣學生練習日語口語。
+  const basePrompt = `你是永漢日語補習班的 AI 日語會話練習助手，專門幫助台灣學生練習日語口語。
 目前練習主題：${currentTopic.name}（${currentTopic.system}）
 學生程度：${diffMap[diff]}
-對話規則：
-1. 每次回覆都用日文進行自然對話，主動推進對話情境
-2. 如果學生的日文有語法錯誤，在日文回應之後，用繁體中文提供簡短說明（標示為【語法提醒】）
-3. 如果學生用羅馬字輸入，幫他轉換為正確日文後繼續對話
-4. 回覆格式嚴格遵守：
-   第一行：日文回應（只有日文，不混中文）
-   第二行：【中文翻譯】（你說的日文的中文意思）
-   有錯誤時才加：【語法提醒】（錯誤說明）
-5. 保持親切有耐心的語氣，鼓勵學生多說
-6. 使用${diffMap[diff]}對應的詞彙和文法`;
+
+每次回覆必須嚴格遵守以下格式（缺一不可）：
+第一行：純日文回應（簡短自然，符合${diffMap[diff]}程度）
+第二行：中文翻譯：加上第一行日文的完整中文意思
+第三行：只在學生說錯時才加，語法提醒：加上錯誤說明與正確說法
+
+格式範例（正確示範）：
+はじめまして！どうぞよろしくお願いします。
+中文翻譯：你好！請多多關照。
+
+格式範例（有錯誤時）：
+そうですね。お名前は何ですか？
+中文翻譯：原來如此。請問您叫什麼名字呢？
+語法提醒：「私はこうです」不夠自然，建議說「私の名前はこうです」
+
+注意事項：
+- 絕對不能省略「中文翻譯：」這一行
+- 日文和中文翻譯必須分兩行，不可以混在同一行
+- 語法提醒只在學生有明確錯誤時才加，不要每次都加`;
+
+  return basePrompt;
 }
 
 async function startAISession() {
@@ -900,16 +898,12 @@ function parseMsg(text) {
   for (const line of lines) {
     const t = line.trim();
     if (!t) continue;
-    // Detect Chinese translation line - support multiple formats
-    const isZh = t.includes('中文翻譯') || t.includes('翻譯：') || t.includes('翻譯:') ||
-                 (cur==='jp' && /^[一-鿿]/.test(t) && jp.length > 0);
-    const isGrammar = t.includes('語法提醒') || t.includes('語法：') || t.includes('語法:');
-    if (isGrammar) {
+    if (t.includes('語法提醒')) {
       cur = 'grammar';
-      grammar += t.replace(/^.*?(語法提醒|語法)[：:】]?\s*/, '').trim() + ' ';
-    } else if (isZh) {
+      grammar += t.replace(/^.*?語法提醒[：:】]?\s*/, '').trim() + ' ';
+    } else if (t.includes('中文翻譯') || t.startsWith('翻譯：') || t.startsWith('翻譯:')) {
       cur = 'zh';
-      zh += t.replace(/^.*?(中文翻譯|翻譯)[：:】]?\s*/, '').trim() + ' ';
+      zh += t.replace(/^.*?(?:中文翻譯|翻譯)[：:】]?\s*/, '').trim() + ' ';
     } else if (cur === 'jp') {
       jp += t + ' ';
     } else if (cur === 'zh') {
@@ -920,7 +914,6 @@ function parseMsg(text) {
   }
   return { jp: jp.trim(), zh: zh.trim(), grammar: grammar.trim() };
 }
-
 function addAIMessage(text) {
   const area = document.getElementById('messagesArea');
   const showTrans = document.getElementById('showTranslation').value==='yes';
@@ -1167,17 +1160,14 @@ async function sendVoiceMessage(text) {
 }
 
 function extractJpOnly(text) {
-  // Only keep lines before the Chinese translation section
   const lines = text.split('\n');
   const jpLines = [];
   for (const line of lines) {
     const t = line.trim();
     if (!t) continue;
-    // Stop when we hit a translation/grammar marker
     if (t.includes('中文翻譯') || t.includes('翻譯：') || t.includes('翻譯:') ||
-        t.includes('語法提醒') || t.includes('語法：') || t.includes('語法:')) break;
-    // Stop if line is mostly Chinese (translation line without marker)
-    const cjk = (t.match(/[一-鿿]/g) || []).length;
+        t.includes('語法提醒') || t.includes('語法：')) break;
+    const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length;
     if (jpLines.length > 0 && cjk / t.length > 0.5) break;
     jpLines.push(t);
   }
