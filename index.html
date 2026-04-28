@@ -756,7 +756,11 @@ function buildSystemPrompt() {
   return `你是永漢日語補習班的 AI 日語會話練習助手。
 主題：${currentTopic.name}（${currentTopic.system}）
 程度：${diffMap[diff]}
-規則：每次回覆只輸出日文句子，不要加任何中文、標號或說明。只有純日文。`;
+嚴格規則：
+1. 每次只輸出一句日文，不可以連續說多句
+2. 不要加任何中文、標號、說明
+3. 句子要簡短自然，最多20個字
+4. 只有純日文，不含任何其他內容`;
 }
 
 function buildAnalysisPrompt(studentText, aiJpReply) {
@@ -859,7 +863,7 @@ async function getAnalysis(studentText, jpReply) {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{role:'user', parts:[{text: buildAnalysisPrompt(studentText, jpReply)}]}],
-        generationConfig:{temperature:0.2, maxOutputTokens:600}
+        generationConfig:{temperature:0.2, maxOutputTokens:800}
       })
     });
     if (!res.ok) return {zh:'', grammar:''};
