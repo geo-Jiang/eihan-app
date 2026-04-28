@@ -864,13 +864,15 @@ async function getAnalysis(studentText, jpReply) {
     const zhIdx = raw.indexOf('中文翻譯');
     const grIdx = raw.indexOf('語法檢查');
     if (zhIdx !== -1) {
-      const zhBlock = grIdx !== -1 ? raw.substring(zhIdx, grIdx) : raw.substring(zhIdx);
-      zh = zhBlock.split('
-').map(l => l.replace(/^中文翻譯[：:]\s*/,'')).join(' ').trim();
+      const zhEnd = grIdx !== -1 ? grIdx : raw.length;
+      zh = raw.substring(zhIdx, zhEnd)
+        .replace('中文翻譯：', '').replace('中文翻譯:', '')
+        .split('\n').join(' ').trim();
     }
     if (grIdx !== -1) {
-      grammar = raw.substring(grIdx).split('
-').map(l => l.replace(/^語法檢查[：:]\s*/,'')).join(' ').trim();
+      grammar = raw.substring(grIdx)
+        .replace('語法檢查：', '').replace('語法檢查:', '')
+        .split('\n').join(' ').trim();
     }
     const isCorrect = grammar.includes('正確') && grammar.length < 15;
     return { zh, grammar: isCorrect ? '' : grammar };
