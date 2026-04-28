@@ -860,23 +860,19 @@ async function getAnalysis(studentText, jpReply) {
     if (!res.ok) return {zh:'', grammar:''};
     const data = await res.json();
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    // Find 中文翻譯 section - grab everything until 語法檢查 or end
     let zh = '', grammar = '';
-    const zhStart = raw.search(/中文翻譯[：:]/);
-    const grammarStart = raw.search(/語法檢查[：:]/);
-    if (zhStart !== -1) {
-      const zhRaw = grammarStart !== -1
-        ? raw.substring(zhStart, grammarStart)
-        : raw.substring(zhStart);
-      zh = zhRaw.replace(/^中文翻譯[：:]\s*/m, '').replace(/
-/g, '').trim();
+    const zhIdx = raw.indexOf('中文翻譯');
+    const grIdx = raw.indexOf('語法檢查');
+    if (zhIdx !== -1) {
+      const zhBlock = grIdx !== -1 ? raw.substring(zhIdx, grIdx) : raw.substring(zhIdx);
+      zh = zhBlock.replace(/^中文翻譯[：:：]\s*/,'').replace(/
+/g,' ').trim();
     }
-    if (grammarStart !== -1) {
-      grammar = raw.substring(grammarStart)
-        .replace(/^語法檢查[：:]\s*/m, '').replace(/
-/g, ' ').trim();
+    if (grIdx !== -1) {
+      grammar = raw.substring(grIdx).replace(/^語法檢查[：:：]\s*/,'').replace(/
+/g,' ').trim();
     }
-    const isCorrect = grammar.includes('正確') && grammar.length < 10;
+    const isCorrect = grammar.includes('正確') && grammar.length < 15;
     return { zh, grammar: isCorrect ? '' : grammar };
   } catch(e) {
     return {zh:'', grammar:''};
