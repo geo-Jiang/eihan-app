@@ -760,14 +760,15 @@ function buildSystemPrompt() {
 }
 
 function buildAnalysisPrompt(studentText, aiJpReply) {
-  return `你是日語教學助手，請針對以下學生的日文發言進行分析。
+  const studentPart = studentText ? `學生說的話：「${studentText}」` : '';
+  return `你是日語教學助手，請完成以下兩項，格式嚴格固定，每項必須完整不可截斷：
 
-學生說的話：「${studentText}」
-AI的日文回覆：「${aiJpReply}」
+AI說的日文：「${aiJpReply}」
+${studentPart}
 
-請用繁體中文輸出以下兩項（格式固定，不可更改）：
-中文翻譯：（把AI說的日文翻譯成中文）
-語法檢查：（判斷學生說的話是否正確。如果正確，寫「正確✓」；如果有錯誤，說明錯誤並給出正確說法）`;
+請輸出：
+中文翻譯：（把AI說的整句日文完整翻譯成中文，必須是完整的句子）
+語法檢查：（${studentText ? '判斷學生說的是否正確，正確就寫「正確」，有錯誤就說明並給出正確說法' : '正確'})`;
 }
 
 
@@ -853,18 +854,32 @@ async function getAnalysis(studentText, jpReply) {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{role:'user', parts:[{text: buildAnalysisPrompt(studentText, jpReply)}]}],
-        generationConfig:{temperature:0.3, maxOutputTokens:200}
+        generationConfig:{temperature:0.3, maxOutputTokens:300}
       })
     });
     if (!res.ok) return {zh:'', grammar:''};
     const data = await res.json();
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const zhMatch = raw.match(/中文翻譯[：:]\s*(.+)/);
-    const grammarMatch = raw.match(/語法檢查[：:]\s*(.+)/s);
-    return {
-      zh: zhMatch ? zhMatch[1].trim() : '',
-      grammar: grammarMatch ? grammarMatch[1].trim().replace('正確✓','') : ''
-    };
+    // Split into lines and find zh/grammar sections
+    const lines = raw.split('\n');
+    let zh = '', grammar = '', cur = '';
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t) continue;
+      if (t.startsWith('中文翻譯')) {
+        cur = 'zh';
+        zh += t.replace(/^中文翻譯[：:]\s*/, '').trim();
+      } else if (t.startsWith('語法檢查')) {
+        cur = 'grammar';
+        grammar += t.replace(/^語法檢查[：:]\s*/, '').trim();
+      } else if (cur === 'zh') {
+        zh += '　' + t;
+      } else if (cur === 'grammar') {
+        grammar += '　' + t;
+      }
+    }
+    const cleanGrammar = grammar.replace(/正確[✓✔]?/g, '').trim();
+    return { zh: zh.trim(), grammar: cleanGrammar };
   } catch(e) {
     return {zh:'', grammar:''};
   }
