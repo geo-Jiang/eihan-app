@@ -760,15 +760,16 @@ function buildSystemPrompt() {
 }
 
 function buildAnalysisPrompt(studentText, aiJpReply) {
-  const studentPart = studentText ? `學生說的話：「${studentText}」` : '';
-  return `你是日語教學助手，請完成以下兩項，格式嚴格固定，每項必須完整不可截斷：
-
-AI說的日文：「${aiJpReply}」
-${studentPart}
-
-請輸出：
-中文翻譯：（把AI說的整句日文完整翻譯成中文，必須是完整的句子）
-語法檢查：（${studentText ? '判斷學生說的是否正確，正確就寫「正確」，有錯誤就說明並給出正確說法' : '正確'})`;
+  const grammarRule = studentText
+    ? '判斷學生說的是否正確，正確就寫「正確」，有錯誤就說明並給出正確說法'
+    : '正確';
+  const studentLine = studentText ? ('\n學生說的話：' + studentText) : '';
+  return '你是日語教學助手，請完成以下兩項，格式嚴格固定，每項必須完整不可截斷：\n\n'
+    + 'AI說的日文：' + aiJpReply
+    + studentLine
+    + '\n\n請輸出：\n'
+    + '中文翻譯：（把AI說的整句日文完整翻譯成中文，必須是完整的句子）\n'
+    + '語法檢查：（' + grammarRule + ')';
 }
 
 
@@ -865,11 +866,11 @@ async function getAnalysis(studentText, jpReply) {
     const grIdx = raw.indexOf('語法檢查');
     if (zhIdx !== -1) {
       const zhBlock = grIdx !== -1 ? raw.substring(zhIdx, grIdx) : raw.substring(zhIdx);
-      zh = zhBlock.replace(/^中文翻譯[：:：]\s*/,'').replace(/
+      zh = zhBlock.replace('中文翻譯：','').replace('中文翻譯:','').replace(/
 /g,' ').trim();
     }
     if (grIdx !== -1) {
-      grammar = raw.substring(grIdx).replace(/^語法檢查[：:：]\s*/,'').replace(/
+      grammar = raw.substring(grIdx).replace('語法檢查：','').replace('語法檢查:','').replace(/
 /g,' ').trim();
     }
     const isCorrect = grammar.includes('正確') && grammar.length < 15;
