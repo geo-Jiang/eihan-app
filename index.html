@@ -859,23 +859,27 @@ async function getAnalysis(studentText, jpReply) {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{role:'user', parts:[{text: buildAnalysisPrompt(studentText, jpReply)}]}],
-        generationConfig:{temperature:0.3, maxOutputTokens:400}
+        generationConfig:{temperature:0.2, maxOutputTokens:600}
       })
     });
     if (!res.ok) return {zh:'', grammar:''};
     var data = await res.json();
     var raw = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
     var zh = '', grammar = '';
-    var zhIdx = raw.indexOf('中文翻譯');
-    var grIdx = raw.indexOf('語法檢查');
+    var zhIdx = raw.indexOf('中文翻譯：');
+    if (zhIdx === -1) zhIdx = raw.indexOf('中文翻譯:');
+    var grIdx = raw.indexOf('語法檢查：');
+    if (grIdx === -1) grIdx = raw.indexOf('語法檢查:');
     if (zhIdx !== -1) {
+      var zhStart = zhIdx + (raw[zhIdx+4] === '：' ? 5 : 5);
       var zhEnd = grIdx !== -1 ? grIdx : raw.length;
-      zh = raw.substring(zhIdx, zhEnd).replace('中文翻譯：','').replace('中文翻譯:','').trim();
+      zh = raw.substring(zhStart, zhEnd).trim();
     }
     if (grIdx !== -1) {
-      grammar = raw.substring(grIdx).replace('語法檢查：','').replace('語法檢查:','').trim();
+      var grStart = grIdx + (raw[grIdx+4] === '：' ? 5 : 5);
+      grammar = raw.substring(grStart).trim();
     }
-    var isCorrect = grammar.indexOf('正確') !== -1 && grammar.length < 15;
+    var isCorrect = grammar === '正確' || (grammar.indexOf('正確') !== -1 && grammar.length < 10);
     return { zh: zh, grammar: isCorrect ? '' : grammar };
   } catch(e) {
     return {zh:'', grammar:''};
