@@ -670,8 +670,9 @@ html, body { height: 100%; font-family: 'Noto Sans TC', sans-serif; background: 
 
 <script>
 // ── CONSTANTS ──
-const GEMINI_KEY = 'AIzaSyCPhYuOqfbbWE-3VEtbFfAnY91_24aj5Mg';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+// API Key is stored securely in Vercel environment variables
+// All requests go through /api/chat (server-side proxy)
+const GEMINI_URL = '/api/chat';
 const DEMO_ACCOUNTS = {
   student: { 'student01': { pw:'pass1234', name:'田中 小明', cls:'初級日語 A班・N5目標' }, 'student02': { pw:'abc123', name:'林 美惠', cls:'中級日語 B班・N3目標' } },
   teacher: { 'teacher01': { pw:'teach2025', name:'永漢教師', cls:'教師帳號・後台管理' } }
