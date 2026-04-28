@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="永漢日語">
+<meta name="theme-color" content="#2A4273">
+<title>永漢日語 — 學習平台</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & ROOT ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #2A4273; --navy-dark: #1C2E52; --navy-light: #3D5A96; --navy-pale: #EEF2F8;
+  --red: #C82D28; --red-pale: #FEF0EF;
+  --slate: #6E788C; --bg: #F4F6FA; --white: #FFFFFF;
+  --border: rgba(42,66,115,0.12); --text: #1A2540; --text-muted: #6E788C;
+  --sidebar-w: 240px;
+}
+html, body { height: 100%; font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+/* ── PAGE SYSTEM ── */
+.page { display: none; width: 100%; height: 100vh; }
+.page.active { display: flex; }
+
+/* ════════════════════════════════
+   LOGIN PAGE
+════════════════════════════════ */
+#page-login { background: var(--bg); }
+.login-layout { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100vh; }
+
+.login-left {
+  background: var(--navy); position: relative;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 3rem; overflow: hidden;
+}
+.login-left::before { content: ''; position: absolute; top: -80px; right: -80px; width: 320px; height: 320px; border-radius: 50%; background: rgba(255,255,255,0.04); }
+.login-left::after { content: ''; position: absolute; bottom: -60px; left: -60px; width: 240px; height: 240px; border-radius: 50%; background: rgba(200,45,40,0.12); }
+.jp-bg { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'Noto Serif JP', serif; font-size: 180px; font-weight: 600; color: rgba(255,255,255,0.04); pointer-events: none; white-space: nowrap; line-height: 1; }
+.ll-brand { position: relative; z-index: 1; animation: fadeUp .7s ease both; }
+.brand-stamp { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; background: var(--red); border-radius: 10px; font-family: 'Noto Serif JP', serif; font-size: 22px; color: white; margin-bottom: 1.2rem; }
+.ll-brand h1 { font-family: 'Noto Serif JP', serif; font-size: 32px; font-weight: 600; color: white; margin-bottom: 6px; }
+.ll-brand .romanji { font-size: 12px; letter-spacing: 4px; color: rgba(255,255,255,0.45); }
+.divider-jp { display: flex; align-items: center; gap: 10px; margin: 1.5rem 0; }
+.divider-jp::before, .divider-jp::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.15); }
+.divider-jp span { font-family: 'Noto Serif JP', serif; font-size: 13px; color: rgba(255,255,255,0.35); letter-spacing: 2px; }
+.ll-tagline { position: relative; z-index: 1; animation: fadeUp .7s .15s ease both; }
+.ll-tagline p { font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.8; max-width: 320px; }
+.ll-features { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 12px; animation: fadeUp .7s .3s ease both; }
+.feat-item { display: flex; align-items: center; gap: 12px; }
+.feat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+.feat-item span { font-size: 13px; color: rgba(255,255,255,0.6); }
+.ll-footer { position: relative; z-index: 1; font-size: 11px; color: rgba(255,255,255,0.25); letter-spacing: 1px; animation: fadeUp .7s .4s ease both; }
+
+.login-right { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem 2rem; background: var(--white); }
+.login-box { width: 100%; max-width: 380px; animation: fadeUp .7s .2s ease both; }
+.login-header { margin-bottom: 2.5rem; }
+.login-header h2 { font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.login-header p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+.role-toggle { display: flex; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 2rem; gap: 4px; }
+.role-btn { flex: 1; padding: 9px 12px; border: none; border-radius: 7px; font-size: 13px; font-weight: 500; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; transition: all .2s; background: transparent; color: var(--text-muted); }
+.role-btn.active { background: var(--white); color: var(--navy); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.form-group { margin-bottom: 1.25rem; }
+.form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; letter-spacing: .5px; text-transform: uppercase; }
+.form-input { width: 100%; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-family: 'Noto Sans TC', sans-serif; color: var(--text); background: var(--white); transition: border-color .2s, box-shadow .2s; outline: none; }
+.form-input::placeholder { color: #B0B8C8; }
+.form-input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(42,66,115,.1); }
+.input-hint { font-size: 11px; color: var(--text-muted); margin-top: 5px; opacity: .7; }
+.login-btn { width: 100%; padding: 13px; background: var(--navy); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; margin-top: .5rem; transition: background .2s, transform .1s; letter-spacing: 1px; }
+.login-btn:hover { background: var(--navy-light); }
+.login-btn:active { transform: scale(.99); }
+.forgot-link { text-align: center; margin-top: 1rem; }
+.forgot-link a { font-size: 12px; color: var(--text-muted); text-decoration: none; cursor: pointer; }
+.forgot-link a:hover { color: var(--navy); }
+.error-msg { background: var(--red-pale); border: 1px solid rgba(200,45,40,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--red); margin-bottom: 1rem; display: none; align-items: center; gap: 8px; }
+.error-msg.show { display: flex; }
+.error-msg::before { content: '!'; width: 18px; height: 18px; background: var(--red); color: white; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.demo-hint { margin-top: 2rem; padding: 12px 16px; background: #F4F6FA; border-radius: 8px; font-size: 11px; color: var(--text-muted); line-height: 1.8; border-left: 3px solid var(--navy); }
+.demo-hint strong { color: var(--navy); display: block; margin-bottom: 4px; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; margin-right: 8px; vertical-align: middle; }
+
+/* ════════════════════════════════
+   HOME PAGE
+════════════════════════════════ */
+#page-home { flex-direction: row; }
+.home-sidebar {
+  width: var(--sidebar-w); flex-shrink: 0;
+  background: var(--navy); display: flex; flex-direction: column;
+  height: 100vh; overflow: hidden;
+}
+.hs-brand { padding: 1.5rem 1.25rem 1rem; border-bottom: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+.hs-stamp { width: 36px; height: 36px; background: var(--red); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Noto Serif JP', serif; font-size: 16px; color: white; font-weight: 600; flex-shrink: 0; }
+.hs-name { color: white; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.hs-sub { color: rgba(255,255,255,.4); font-size: 10px; letter-spacing: 1px; }
+.hs-user { padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,.08); }
+.hs-avatar { width: 40px; height: 40px; background: rgba(255,255,255,.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 8px; }
+.hs-uname { font-size: 13px; font-weight: 600; color: white; }
+.hs-class { display: inline-block; background: rgba(200,45,40,.25); border: 1px solid rgba(200,45,40,.4); color: #ffb3b0; font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-top: 4px; }
+.hs-nav { flex: 1; padding: .75rem 0; overflow-y: auto; }
+.nav-section-lbl { font-size: 10px; letter-spacing: 2px; color: rgba(255,255,255,.3); padding: .75rem 1.25rem .3rem; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 1.25rem; font-size: 13px; color: rgba(255,255,255,.6); cursor: pointer; border-left: 3px solid transparent; transition: all .15s; }
+.nav-item:hover { background: rgba(255,255,255,.05); color: white; }
+.nav-item.active { background: rgba(255,255,255,.08); color: white; border-left-color: var(--red); }
+.nav-icon { font-size: 15px; width: 20px; text-align: center; }
+.nav-badge { margin-left: auto; background: var(--red); color: white; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; }
+.hs-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(255,255,255,.08); font-size: 11px; color: rgba(255,255,255,.25); cursor: pointer; }
+.hs-footer:hover { color: rgba(255,255,255,.5); }
+
+.home-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.home-topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 2rem; height: 56px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.home-topbar-title { font-size: 15px; font-weight: 600; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-date { font-size: 12px; color: var(--text-muted); }
+.notif-btn { width: 32px; height: 32px; border-radius: 8px; background: var(--bg); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; position: relative; }
+.notif-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; background: var(--red); border-radius: 50%; border: 1.5px solid white; }
+.home-content { flex: 1; overflow-y: auto; padding: 1.75rem 2rem; }
+
+/* Home sections */
+.h-section { display: none; }
+.h-section.active { display: block; animation: fadeIn .3s ease both; }
+.greeting-card { background: var(--navy); border-radius: 14px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
+.greeting-card::after { content: 'がんばって'; position: absolute; right: -10px; bottom: -10px; font-family: 'Noto Serif JP', serif; font-size: 64px; color: rgba(255,255,255,.05); pointer-events: none; }
+.greeting-card h2 { color: white; font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.greeting-card p { color: rgba(255,255,255,.6); font-size: 13px; }
+.greeting-stats { display: flex; gap: 2rem; margin-top: 1.25rem; }
+.g-stat .val { font-size: 22px; font-weight: 700; color: white; }
+.g-stat .lbl { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 1px; }
+.quick-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 1.5rem; }
+.quick-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem; cursor: pointer; transition: all .2s; text-align: center; }
+.quick-card:hover { border-color: var(--navy); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(42,66,115,.1); }
+.quick-icon { font-size: 24px; margin-bottom: 8px; }
+.quick-card h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.quick-card p { font-size: 11px; color: var(--text-muted); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+.card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.card-header h3 { font-size: 14px; font-weight: 600; }
+.card-header a { font-size: 12px; color: var(--navy); text-decoration: none; cursor: pointer; }
+.card-body { padding: 1rem 1.25rem; }
+.lesson-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; }
+.lesson-item:last-child { border-bottom: none; }
+.lesson-item:hover { background: var(--bg); margin: 0 -1.25rem; padding: 10px 1.25rem; border-radius: 8px; }
+.lesson-num { width: 32px; height: 32px; border-radius: 8px; background: var(--navy-pale); color: var(--navy); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.lesson-info h4 { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.lesson-info p { font-size: 11px; color: var(--text-muted); }
+.lesson-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.tag-new { background: var(--red-pale); color: var(--red); }
+.tag-done { background: #EAF5EE; color: #2E7D4F; }
+.progress-item { margin-bottom: 1rem; }
+.progress-item:last-child { margin-bottom: 0; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+.progress-label span:first-child { font-weight: 500; }
+.progress-label span:last-child { color: var(--text-muted); }
+.progress-bar { height: 6px; background: var(--bg); border-radius: 10px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 10px; background: var(--navy); }
+.progress-fill.green { background: #3A9E5F; }
+.progress-fill.red-fill { background: var(--red); }
+.upcoming-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.upcoming-item:last-child { border-bottom: none; }
+.date-block { width: 40px; flex-shrink: 0; background: var(--navy-pale); border-radius: 8px; text-align: center; padding: 6px 4px; }
+.date-block .day { font-size: 18px; font-weight: 700; color: var(--navy); line-height: 1; }
+.date-block .mon { font-size: 10px; color: var(--text-muted); }
+.upcoming-info h4 { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.upcoming-info p { font-size: 11px; color: var(--text-muted); }
+
+/* Materials */
+.file-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+.file-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: border-color .2s; }
+.file-card:hover { border-color: var(--navy); }
+.file-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.fi-pdf { background: var(--red-pale); } .fi-ppt { background: #FFF4E6; } .fi-word { background: var(--navy-pale); } .fi-img { background: #EAF5EE; }
+.file-info h4 { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.file-info p { font-size: 11px; color: var(--text-muted); }
+
+/* Videos */
+.video-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; align-items: center; }
+.video-item:last-child { border-bottom: none; }
+.video-thumb { width: 80px; height: 48px; background: var(--navy); border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; position: relative; }
+.video-thumb::after { content: '▶'; position: absolute; font-size: 14px; color: white; opacity: .9; }
+.video-info h4 { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+.video-info p { font-size: 11px; color: var(--text-muted); }
+.video-duration { font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--bg); padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+
+/* Quiz */
+.quiz-start-btn { background: var(--red); color: white; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; }
+
+/* Stats */
+.stat-grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 1.25rem; }
+.stat-box { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; text-align: center; }
+.stat-box .sv { font-size: 28px; font-weight: 700; color: var(--navy); }
+.stat-box .sl { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+/* ════════════════════════════════
+   AI CHAT PAGE
+════════════════════════════════ */
+#page-ai { flex-direction: row; }
+.ai-sidebar { width: 280px; flex-shrink: 0; background: var(--white); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.ai-sidebar-hdr { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.back-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--text-muted); flex-shrink: 0; }
+.back-btn:hover { background: var(--bg); }
+.ai-sidebar-title { font-size: 14px; font-weight: 700; color: var(--navy); }
+.ai-sidebar-sub { font-size: 11px; color: var(--text-muted); }
+.topic-list { flex: 1; overflow-y: auto; padding: .75rem; }
+.topic-section-lbl { font-size: 10px; letter-spacing: 2px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; padding: .5rem .5rem .3rem; }
+.topic-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: all .15s; margin-bottom: 2px; }
+.topic-item:hover { background: var(--bg); }
+.topic-item.active { background: var(--navy-pale); }
+.topic-emoji { font-size: 18px; flex-shrink: 0; }
+.topic-info h4 { font-size: 13px; font-weight: 600; margin-bottom: 1px; }
+.topic-info p { font-size: 11px; color: var(--text-muted); }
+.topic-badge { margin-left: auto; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 8px; flex-shrink: 0; }
+.lv-easy { background: #EAF5EE; color: #2E7D4F; }
+.lv-mid { background: var(--navy-pale); color: var(--navy); }
+.lv-hard { background: var(--red-pale); color: var(--red); }
+.ai-settings { padding: 1rem 1.25rem; border-top: 1px solid var(--border); }
+.setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.setting-row:last-child { margin-bottom: 0; }
+.setting-label { font-size: 12px; color: var(--text-muted); }
+.setting-select { font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', sans-serif; cursor: pointer; }
+
+.ai-chat-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.ai-topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: .75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.ai-topic-info { display: flex; align-items: center; gap: 10px; }
+.ai-topic-icon { width: 36px; height: 36px; background: var(--navy); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.ai-topic-name { font-size: 14px; font-weight: 600; }
+.ai-topic-desc { font-size: 11px; color: var(--text-muted); }
+.ai-actions { display: flex; gap: 8px; }
+.action-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-muted); font-family: 'Noto Sans TC', sans-serif; transition: all .15s; }
+.action-btn:hover { background: var(--bg); color: var(--navy); border-color: var(--navy); }
+.action-btn.primary { background: var(--navy); color: white; border-color: var(--navy); }
+.action-btn.primary:hover { background: var(--navy-light); }
+
+.messages-area { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.msg-row { display: flex; gap: 10px; align-items: flex-start; animation: fadeIn .3s ease both; }
+.msg-row.user { flex-direction: row-reverse; }
+.msg-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.avatar-ai { background: var(--navy); } .avatar-user { background: var(--red-pale); }
+.msg-content { max-width: 70%; display: flex; flex-direction: column; gap: 4px; }
+.msg-row.user .msg-content { align-items: flex-end; }
+.msg-bubble { padding: 11px 15px; border-radius: 14px; font-size: 14px; line-height: 1.65; }
+.bubble-ai { background: var(--white); border: 1px solid var(--border); border-top-left-radius: 4px; }
+.bubble-user { background: var(--navy); color: white; border-top-right-radius: 4px; }
+.msg-jp { font-family: 'Noto Serif JP', serif; font-size: 15px; margin-bottom: 4px; }
+.msg-zh { font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 6px; margin-top: 4px; }
+.feedback-box { background: #F0F5FF; border: 1px solid rgba(42,66,115,.2); border-radius: 10px; padding: 10px 14px; font-size: 12px; line-height: 1.7; color: var(--navy); margin-top: 4px; }
+.feedback-box .fb-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--navy-light); margin-bottom: 4px; }
+.msg-time { font-size: 10px; color: var(--text-muted); padding: 0 4px; }
+.typing-indicator { display: flex; gap: 4px; align-items: center; padding: 12px 16px; }
+.typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--slate); animation: bounce 1.2s infinite; }
+.typing-dot:nth-child(2) { animation-delay: .2s; }
+.typing-dot:nth-child(3) { animation-delay: .4s; }
+
+.input-area { background: var(--white); border-top: 1px solid var(--border); padding: 1rem 1.5rem; flex-shrink: 0; }
+.input-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
+.tool-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; font-size: 11px; font-weight: 500; color: var(--text-muted); font-family: 'Noto Sans TC', sans-serif; transition: all .15s; }
+.tool-btn:hover { border-color: var(--navy); color: var(--navy); }
+.tool-btn.active { background: var(--navy-pale); color: var(--navy); border-color: var(--navy); }
+.input-row { display: flex; gap: 10px; align-items: flex-end; }
+.chat-input { flex: 1; padding: 11px 16px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 14px; font-family: 'Noto Sans TC', sans-serif; color: var(--text); resize: none; outline: none; line-height: 1.5; max-height: 120px; overflow-y: auto; transition: border-color .2s; }
+.chat-input:focus { border-color: var(--navy); }
+.chat-input::placeholder { color: #B0B8C8; }
+.send-btn { width: 44px; height: 44px; background: var(--navy); border: none; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; transition: background .2s; }
+.send-btn:hover { background: var(--navy-light); }
+.send-btn:disabled { background: #B0B8C8; cursor: not-allowed; }
+.input-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; text-align: center; }
+.mic-btn { width: 44px; height: 44px; background: var(--white); border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; transition: all .2s; }
+.mic-btn:hover { border-color: var(--red); background: var(--red-pale); }
+.mic-btn.recording { background: var(--red); border-color: var(--red); animation: micPulse 1s ease infinite; }
+.mic-btn.recording::after { content: ''; position: absolute; width: 44px; height: 44px; border-radius: 12px; border: 2px solid var(--red); animation: micRing 1s ease infinite; }
+@keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+@keyframes micRing { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.5);opacity:0} }
+.voice-status { display:none; align-items:center; gap:8px; padding:6px 12px; background:var(--red-pale); border-radius:8px; margin-bottom:6px; }
+.voice-status.show { display:flex; }
+.voice-status-dot { width:8px;height:8px;border-radius:50%;background:var(--red);animation:micPulse .8s ease infinite; }
+.voice-status p { font-size:12px;color:var(--red);font-weight:500; }
+.tts-btn { padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; cursor:pointer; font-size:11px; color:var(--text-muted); font-family:'Noto Sans TC',sans-serif; transition:all .15s; margin-top:4px; }
+.tts-btn:hover { border-color:var(--navy); color:var(--navy); }
+.tts-btn.speaking { background:var(--navy-pale); color:var(--navy); border-color:var(--navy); }
+
+/* welcome */
+.welcome-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; gap: 1rem; }
+.welcome-screen h2 { font-size: 20px; font-weight: 700; color: var(--navy); }
+.welcome-screen p { font-size: 13px; color: var(--text-muted); max-width: 320px; line-height: 1.7; }
+.welcome-topics { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: .5rem; }
+.welcome-topic-btn { padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--white); cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text); font-family: 'Noto Sans TC', sans-serif; transition: all .15s; }
+.welcome-topic-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--navy-pale); }
+
+/* ── MOBILE ── */
+.mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 1px solid var(--border); padding: 8px 0 12px; z-index: 300; }
+.mobile-nav-items { display: flex; }
+.mobile-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; font-size: 10px; color: var(--text-muted); padding: 4px 0; }
+.mobile-nav-item.active { color: var(--navy); }
+.mobile-nav-item .m-icon { font-size: 20px; }
+
+@media (max-width: 860px) {
+  .login-layout { grid-template-columns: 1fr; }
+  .login-left { display: none; }
+  .login-right { padding: 2rem 1.5rem; }
+  .home-sidebar { display: none; }
+  .quick-grid { grid-template-columns: repeat(2,1fr); }
+  .two-col { grid-template-columns: 1fr; }
+  .file-grid { grid-template-columns: 1fr; }
+  .stat-grid-3 { grid-template-columns: repeat(3,1fr); }
+  .home-content { padding: 1rem; padding-bottom: 80px; }
+  .mobile-nav { display: block; }
+  .ai-sidebar { display: none; }
+  .messages-area { padding: 1rem; }
+  .msg-content { max-width: 85%; }
+  .input-area { padding: .75rem 1rem; padding-bottom: 80px; }
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+/* VOICE PANEL */
+.voice-panel { display:flex; flex-direction:column; align-items:center; padding:1.25rem 1rem 0.75rem; gap:12px; }
+.voice-circle-wrap { position:relative; display:flex; align-items:center; justify-content:center; }
+.voice-circle {
+  width:72px; height:72px; border-radius:50%;
+  background:var(--navy); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; transition:all .2s; position:relative; z-index:2;
+  box-shadow:0 4px 16px rgba(42,66,115,0.3);
+}
+.voice-circle:hover { transform:scale(1.06); background:var(--navy-light); }
+.voice-circle.listening { background:var(--red); box-shadow:0 4px 20px rgba(200,45,40,0.4); }
+.voice-circle.speaking { background:#2E7D4F; box-shadow:0 4px 20px rgba(46,125,79,0.4); }
+.voice-circle.thinking { background:var(--navy-light); }
+.voice-ring {
+  position:absolute; width:72px; height:72px; border-radius:50%;
+  border:3px solid var(--red); opacity:0; z-index:1;
+  transition:opacity .2s;
+}
+.voice-ring.active { animation:ringPulse 1.2s ease infinite; }
+@keyframes ringPulse {
+  0%{transform:scale(1);opacity:.7}
+  100%{transform:scale(1.8);opacity:0}
+}
+.voice-label { font-size:13px; font-weight:600; color:var(--text-muted); letter-spacing:.5px; }
+.voice-transcript {
+  min-height:40px; width:100%; max-width:480px;
+  background:var(--bg); border-radius:10px;
+  padding:10px 14px; font-size:14px; color:var(--text);
+  text-align:center; line-height:1.6;
+  font-family:'Noto Serif JP',serif;
+}
+.voice-transcript:empty::before { content:'— 說話後文字會顯示在這裡 —'; color:var(--text-muted); font-size:12px; font-family:'Noto Sans TC',sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     PAGE 1: LOGIN
+══════════════════════════════════ -->
+<div class="page active" id="page-login">
+  <div class="login-layout">
+    <div class="login-left">
+      <div class="jp-bg">語</div>
+      <div class="ll-brand">
+        <div class="brand-stamp">語</div>
+        <h1>永漢日語</h1>
+        <div class="romanji">EI-HAN NIHONGO SCHOOL</div>
+        <div class="divider-jp"><span>にほんご</span></div>
+      </div>
+      <div class="ll-tagline"><p>課後學習延伸平台，結合教材複習、AI 對話練習，讓日語學習不只在課堂裡。</p></div>
+      <div class="ll-features">
+        <div class="feat-item"><div class="feat-dot"></div><span>班級專屬教材與課程錄影</span></div>
+        <div class="feat-item"><div class="feat-dot"></div><span>AI 日語對話練習（Gemini 驅動）</span></div>
+        <div class="feat-item"><div class="feat-dot"></div><span>線上測驗與日檢備考追蹤</span></div>
+        <div class="feat-item"><div class="feat-dot"></div><span>手機、平板、電腦全裝置支援</span></div>
+      </div>
+      <div class="ll-footer">© 2025 EI-HAN NIHONGO SCHOOL</div>
+    </div>
+    <div class="login-right">
+      <div class="login-box">
+        <div class="login-header"><h2>歡迎回來</h2><p>請選擇身份並輸入帳號密碼登入</p></div>
+        <div class="role-toggle">
+          <button class="role-btn active" id="btnStudent" onclick="setLoginRole('student')">🎓 學員登入</button>
+          <button class="role-btn" id="btnTeacher" onclick="setLoginRole('teacher')">👨‍🏫 教師登入</button>
+        </div>
+        <div class="error-msg" id="loginError">帳號或密碼錯誤，請再試一次。</div>
+        <div class="form-group">
+          <label class="form-label">帳號</label>
+          <input type="text" class="form-input" id="inputId" placeholder="請輸入帳號" />
+          <div class="input-hint" id="idHint">帳號由老師提供</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">密碼</label>
+          <input type="password" class="form-input" id="inputPw" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()" />
+        </div>
+        <button class="login-btn" id="loginBtn" onclick="doLogin()">登入</button>
+        <div class="forgot-link"><a>忘記密碼？請聯絡老師重設</a></div>
+        <div class="demo-hint">
+          <strong>Demo 帳號（提案展示用）</strong>
+          學員：student01 / pass1234<br>
+          教師：teacher01 / teach2025
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     PAGE 2: HOME
+══════════════════════════════════ -->
+<div class="page" id="page-home">
+  <div class="home-sidebar">
+    <div class="hs-brand">
+      <div class="hs-stamp">語</div>
+      <div><div class="hs-name">永漢日語</div><div class="hs-sub">にほんご</div></div>
+    </div>
+    <div class="hs-user">
+      <div class="hs-avatar">🎓</div>
+      <div class="hs-uname" id="sidebarName">田中 小明</div>
+      <div class="hs-class" id="sidebarClass">初級日語 A班・N5目標</div>
+    </div>
+    <nav class="hs-nav">
+      <div class="nav-section-lbl">學習</div>
+      <div class="nav-item active" onclick="switchHome('dashboard',this)"><span class="nav-icon">🏠</span>學習主頁</div>
+      <div class="nav-item" onclick="switchHome('materials',this)"><span class="nav-icon">📂</span>班級教材</div>
+      <div class="nav-item" onclick="switchHome('videos',this)"><span class="nav-icon">🎬</span>課程錄影<span class="nav-badge">3</span></div>
+      <div class="nav-item" onclick="goToAI()"><span class="nav-icon">🤖</span>AI 對話練習</div>
+      <div class="nav-section-lbl">測驗</div>
+      <div class="nav-item" onclick="switchHome('quiz',this)"><span class="nav-icon">📝</span>測驗 / 考卷<span class="nav-badge">1</span></div>
+      <div class="nav-item" onclick="switchHome('stats',this)"><span class="nav-icon">📊</span>學習紀錄</div>
+    </nav>
+    <div class="hs-footer" onclick="doLogout()">⬅ 登出</div>
+  </div>
+
+  <div class="home-main">
+    <div class="home-topbar">
+      <div class="home-topbar-title" id="homeTopbarTitle">學習主頁</div>
+      <div class="topbar-right">
+        <div class="topbar-date" id="todayDate"></div>
+        <button class="notif-btn">🔔<div class="notif-dot"></div></button>
+      </div>
+    </div>
+    <div class="home-content">
+
+      <!-- DASHBOARD -->
+      <div class="h-section active" id="hs-dashboard">
+        <div class="greeting-card">
+          <h2 id="greetingMsg">早安！おはようございます 🌸</h2>
+          <p>你已連續學習 7 天，繼續保持！距離 N5 測驗還有 42 天。</p>
+          <div class="greeting-stats">
+            <div class="g-stat"><div class="val">7</div><div class="lbl">連續學習天</div></div>
+            <div class="g-stat"><div class="val">23</div><div class="lbl">AI 練習次數</div></div>
+            <div class="g-stat"><div class="val">85%</div><div class="lbl">本週出席率</div></div>
+          </div>
+        </div>
+        <div class="quick-grid">
+          <div class="quick-card" onclick="goToAI()"><div class="quick-icon">🤖</div><h4>AI 對話練習</h4><p>今天還沒練習</p></div>
+          <div class="quick-card" onclick="switchHome('materials',null)"><div class="quick-icon">📂</div><h4>本週教材</h4><p>第 8 課已上傳</p></div>
+          <div class="quick-card" onclick="switchHome('videos',null)"><div class="quick-icon">🎬</div><h4>課程錄影</h4><p>3 部新影片</p></div>
+          <div class="quick-card" onclick="switchHome('quiz',null)"><div class="quick-icon">📝</div><h4>待交測驗</h4><p style="color:var(--red);font-weight:600">1 份待完成</p></div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><h3>最近教材</h3><a onclick="switchHome('materials',null)">全部查看</a></div>
+            <div class="card-body">
+              <div class="lesson-item"><div class="lesson-num">8</div><div class="lesson-info"><h4>第8課：趣味と日課</h4><p>PDF・PPT・單字表</p></div><span class="lesson-tag tag-new">最新</span></div>
+              <div class="lesson-item"><div class="lesson-num">7</div><div class="lesson-info"><h4>第7課：買い物の表現</h4><p>PDF・練習題</p></div><span class="lesson-tag tag-done">已讀</span></div>
+              <div class="lesson-item"><div class="lesson-num">6</div><div class="lesson-info"><h4>第6課：時間と場所</h4><p>PDF・錄音檔</p></div><span class="lesson-tag tag-done">已讀</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>學習進度</h3></div>
+            <div class="card-body">
+              <div class="progress-item"><div class="progress-label"><span>文法掌握度</span><span>72%</span></div><div class="progress-bar"><div class="progress-fill" style="width:72%"></div></div></div>
+              <div class="progress-item"><div class="progress-label"><span>單字熟悉度</span><span>58%</span></div><div class="progress-bar"><div class="progress-fill" style="width:58%"></div></div></div>
+              <div class="progress-item"><div class="progress-label"><span>AI 對話練習</span><span>85%</span></div><div class="progress-bar"><div class="progress-fill green" style="width:85%"></div></div></div>
+              <div class="progress-item"><div class="progress-label"><span>測驗平均分數</span><span>78分</span></div><div class="progress-bar"><div class="progress-fill red-fill" style="width:78%"></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>近期課程安排</h3></div>
+          <div class="card-body">
+            <div class="upcoming-item"><div class="date-block"><div class="day">14</div><div class="mon">週三</div></div><div class="upcoming-info"><h4>初級 A班・實體課程 第9課</h4><p>19:00–21:00・台北教室</p></div></div>
+            <div class="upcoming-item"><div class="date-block"><div class="day">17</div><div class="mon">週六</div></div><div class="upcoming-info"><h4>N5 模擬考試</h4><p>10:00–12:00・線上測驗</p></div></div>
+            <div class="upcoming-item"><div class="date-block"><div class="day">21</div><div class="mon">週三</div></div><div class="upcoming-info"><h4>初級 A班・實體課程 第10課</h4><p>19:00–21:00・台北教室</p></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MATERIALS -->
+      <div class="h-section" id="hs-materials">
+        <div style="margin-bottom:1.25rem"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px">班級教材庫</h2><p style="font-size:13px;color:var(--text-muted)">初級日語 A班・共 8 課教材</p></div>
+        <div class="file-grid">
+          <div class="file-card"><div class="file-icon fi-pdf">📄</div><div class="file-info"><h4>第8課 課本 PDF</h4><p>趣味と日課・2.3MB</p></div></div>
+          <div class="file-card"><div class="file-icon fi-ppt">📊</div><div class="file-info"><h4>第8課 課堂簡報</h4><p>PPT・5.1MB</p></div></div>
+          <div class="file-card"><div class="file-icon fi-word">📝</div><div class="file-info"><h4>第8課 單字表</h4><p>Word・450KB</p></div></div>
+          <div class="file-card"><div class="file-icon fi-img">🖼</div><div class="file-info"><h4>第8課 補充筆記</h4><p>圖片掃描・1.8MB</p></div></div>
+          <div class="file-card"><div class="file-icon fi-pdf">📄</div><div class="file-info"><h4>第7課 課本 PDF</h4><p>買い物の表現・2.1MB</p></div></div>
+          <div class="file-card"><div class="file-icon fi-ppt">📊</div><div class="file-info"><h4>第7課 課堂簡報</h4><p>PPT・4.8MB</p></div></div>
+          <div class="file-card"><div class="file-icon fi-pdf">📄</div><div class="file-info"><h4>N5 文法整理表</h4><p>考試準備・1.2MB</p></div></div>
+          <div class="file-card"><div class="file-icon fi-word">📝</div><div class="file-info"><h4>N5 常用單字 500</h4><p>Word・680KB</p></div></div>
+        </div>
+      </div>
+
+      <!-- VIDEOS -->
+      <div class="h-section" id="hs-videos">
+        <div style="margin-bottom:1.25rem"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px">課程錄影</h2><p style="font-size:13px;color:var(--text-muted)">初級日語 A班・實體課程錄影存檔</p></div>
+        <div class="card"><div class="card-body" style="padding:0 1.25rem">
+          <div class="video-item"><div class="video-thumb" style="background:#1C2E52">🎬</div><div class="video-info"><h4>第8課 2025/05/07 實體課程錄影</h4><p>趣味と日課・文法講解 + 會話練習</p></div><div class="video-duration">48:23</div></div>
+          <div class="video-item"><div class="video-thumb" style="background:#2A4273">🎬</div><div class="video-info"><h4>第7課 2025/04/30 實體課程錄影</h4><p>買い物・助詞「を」用法精講</p></div><div class="video-duration">51:10</div></div>
+          <div class="video-item"><div class="video-thumb" style="background:#3D5A96">🎬</div><div class="video-info"><h4>第7課 補充錄音・單字發音練習</h4><p>跟讀練習音檔</p></div><div class="video-duration">12:44</div></div>
+          <div class="video-item"><div class="video-thumb" style="background:#1C2E52">🎬</div><div class="video-info"><h4>第6課 2025/04/23 實體課程錄影</h4><p>時間と場所・に vs で 用法</p></div><div class="video-duration">45:30</div></div>
+        </div></div>
+      </div>
+
+      <!-- QUIZ -->
+      <div class="h-section" id="hs-quiz">
+        <div style="margin-bottom:1.25rem"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px">測驗 / 考卷</h2><p style="font-size:13px;color:var(--text-muted)">老師指定測驗與歷次成績</p></div>
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-header"><h3 style="color:var(--red)">⚠ 待完成測驗</h3></div>
+          <div class="card-body">
+            <div class="lesson-item"><div class="lesson-num" style="background:var(--red-pale);color:var(--red)">!</div><div class="lesson-info"><h4>第7-8課 綜合測驗</h4><p>截止日：2025/05/16・預計30分鐘</p></div><button class="quiz-start-btn">開始作答</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>歷次成績</h3></div>
+          <div class="card-body">
+            <div class="lesson-item"><div class="lesson-num" style="background:#EAF5EE;color:#2E7D4F">92</div><div class="lesson-info"><h4>第5-6課 綜合測驗</h4><p>2025/04/23 完成</p></div><span class="lesson-tag" style="background:#EAF5EE;color:#2E7D4F">優秀</span></div>
+            <div class="lesson-item"><div class="lesson-num" style="background:var(--navy-pale);color:var(--navy)">78</div><div class="lesson-info"><h4>第3-4課 綜合測驗</h4><p>2025/04/09 完成</p></div><span class="lesson-tag tag-done">良好</span></div>
+            <div class="lesson-item"><div class="lesson-num" style="background:var(--red-pale);color:var(--red)">65</div><div class="lesson-info"><h4>第1-2課 基礎測驗</h4><p>2025/03/26 完成</p></div><span class="lesson-tag tag-new">需加強</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="h-section" id="hs-stats">
+        <div style="margin-bottom:1.25rem"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px">學習紀錄</h2><p style="font-size:13px;color:var(--text-muted)">過去 30 天的學習統計</p></div>
+        <div class="stat-grid-3">
+          <div class="stat-box"><div class="sv">23</div><div class="sl">AI 練習次數</div></div>
+          <div class="stat-box"><div class="sv">7</div><div class="sl">連續學習天</div></div>
+          <div class="stat-box"><div class="sv" style="color:#2E7D4F">78分</div><div class="sl">測驗平均分</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>各項能力進度</h3></div>
+          <div class="card-body">
+            <div class="progress-item"><div class="progress-label"><span>文法（文法）</span><span>72%</span></div><div class="progress-bar"><div class="progress-fill" style="width:72%"></div></div></div>
+            <div class="progress-item"><div class="progress-label"><span>單字（語彙）</span><span>58%</span></div><div class="progress-bar"><div class="progress-fill" style="width:58%"></div></div></div>
+            <div class="progress-item"><div class="progress-label"><span>聽力（聴解）</span><span>64%</span></div><div class="progress-bar"><div class="progress-fill" style="width:64%"></div></div></div>
+            <div class="progress-item"><div class="progress-label"><span>會話（会話）</span><span>85%</span></div><div class="progress-bar"><div class="progress-fill green" style="width:85%"></div></div></div>
+            <div class="progress-item"><div class="progress-label"><span>閱讀（読解）</span><span>50%</span></div><div class="progress-bar"><div class="progress-fill red-fill" style="width:50%"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end home-content -->
+  </div><!-- end home-main -->
+
+  <!-- Mobile bottom nav -->
+  <div class="mobile-nav">
+    <div class="mobile-nav-items">
+      <div class="mobile-nav-item active" onclick="switchHome('dashboard',this)"><span class="m-icon">🏠</span>主頁</div>
+      <div class="mobile-nav-item" onclick="switchHome('materials',this)"><span class="m-icon">📂</span>教材</div>
+      <div class="mobile-nav-item" onclick="switchHome('videos',this)"><span class="m-icon">🎬</span>錄影</div>
+      <div class="mobile-nav-item" onclick="goToAI()"><span class="m-icon">🤖</span>AI練習</div>
+      <div class="mobile-nav-item" onclick="switchHome('quiz',this)"><span class="m-icon">📝</span>測驗</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     PAGE 3: AI CHAT
+══════════════════════════════════ -->
+<div class="page" id="page-ai">
+  <div class="ai-sidebar">
+    <div class="ai-sidebar-hdr">
+      <button class="back-btn" onclick="goToHome()">←</button>
+      <div><div class="ai-sidebar-title">AI 對話練習</div><div class="ai-sidebar-sub" id="aiSidebarUser">田中 小明・初級 A班</div></div>
+    </div>
+    <div class="topic-list">
+      <div class="topic-section-lbl">第8課 教材</div>
+      <div class="topic-item active" onclick="selectTopic(this,'趣味の会話','🎯','詢問興趣・第8課教材','lv-easy','趣味について話す練習')"><span class="topic-emoji">🎯</span><div class="topic-info"><h4>趣味の会話</h4><p>詢問對方興趣愛好</p></div><span class="topic-badge lv-easy">初級</span></div>
+      <div class="topic-item" onclick="selectTopic(this,'日課の話','📅','談論每日習慣・第8課教材','lv-easy','毎日の習慣について話す練習')"><span class="topic-emoji">📅</span><div class="topic-info"><h4>日課の話</h4><p>談論每日習慣</p></div><span class="topic-badge lv-easy">初級</span></div>
+      <div class="topic-section-lbl">第7課 教材</div>
+      <div class="topic-item" onclick="selectTopic(this,'買い物','🛒','便利商店・超市購物對話','lv-easy','コンビニやスーパーでの買い物練習')"><span class="topic-emoji">🛒</span><div class="topic-info"><h4>買い物</h4><p>便利商店・超市對話</p></div><span class="topic-badge lv-easy">初級</span></div>
+      <div class="topic-section-lbl">通用練習</div>
+      <div class="topic-item" onclick="selectTopic(this,'自己紹介','🎌','自我介紹・N5 基礎','lv-easy','自己紹介の練習')"><span class="topic-emoji">🎌</span><div class="topic-info"><h4>自己紹介</h4><p>自我介紹練習</p></div><span class="topic-badge lv-easy">初級</span></div>
+      <div class="topic-item" onclick="selectTopic(this,'レストランで','🍜','餐廳點餐對話','lv-mid','レストランでの注文練習')"><span class="topic-emoji">🍜</span><div class="topic-info"><h4>レストランで</h4><p>餐廳點餐對話</p></div><span class="topic-badge lv-mid">中級</span></div>
+      <div class="topic-item" onclick="selectTopic(this,'道案内','🗺','問路與交通','lv-mid','道案内の練習')"><span class="topic-emoji">🗺</span><div class="topic-info"><h4>道案内</h4><p>問路與交通</p></div><span class="topic-badge lv-mid">中級</span></div>
+      <div class="topic-item" onclick="selectTopic(this,'N5 模擬会話','📋','N5 日語檢定常見題型','lv-hard','N5検定の会話練習')"><span class="topic-emoji">📋</span><div class="topic-info"><h4>N5 模擬会話</h4><p>日檢 N5 常見題型</p></div><span class="topic-badge lv-hard">考試</span></div>
+      <div class="topic-item" onclick="selectTopic(this,'自由練習','✏️','任意主題自由對話','lv-mid','自由に会話する練習')"><span class="topic-emoji">✏️</span><div class="topic-info"><h4>自由練習</h4><p>任意主題</p></div><span class="topic-badge lv-mid">自由</span></div>
+    </div>
+    <div class="ai-settings">
+      <div class="setting-row"><span class="setting-label">顯示中文翻譯</span><select class="setting-select" id="showTranslation"><option value="yes">顯示</option><option value="no">隱藏</option></select></div>
+      <div class="setting-row"><span class="setting-label">難度</span><select class="setting-select" id="difficulty"><option value="easy">初級</option><option value="mid">中級</option><option value="hard">高級</option></select></div>
+    </div>
+  </div>
+
+  <div class="ai-chat-main">
+    <div class="ai-topbar">
+      <div class="ai-topic-info">
+        <div class="ai-topic-icon" id="aiTopicIcon">🎯</div>
+        <div><div class="ai-topic-name" id="aiTopicName">趣味の会話</div><div class="ai-topic-desc" id="aiTopicDesc">詢問興趣・第8課教材</div></div>
+      </div>
+      <div class="ai-actions">
+        <button class="action-btn" onclick="goToHome()">← 返回主頁</button>
+        <button class="action-btn" onclick="clearAIChat()">🔄 重新開始</button>
+        <button class="action-btn primary" onclick="resetAIWelcome()">新對話</button>
+      </div>
+    </div>
+
+    <div class="welcome-screen" id="aiWelcome">
+      <div style="font-size:48px">🤖</div>
+      <h2>AI 日語對話練習</h2>
+      <p>由 Gemini AI 驅動，根據你的班級教材與程度，陪你練習日語會話，並即時給予語法回饋。</p>
+      <div class="welcome-topics">
+        <button class="welcome-topic-btn" onclick="quickStartAI('趣味の会話')">🎯 趣味の会話</button>
+        <button class="welcome-topic-btn" onclick="quickStartAI('買い物')">🛒 買い物</button>
+        <button class="welcome-topic-btn" onclick="quickStartAI('自己紹介')">🎌 自己紹介</button>
+        <button class="welcome-topic-btn" onclick="quickStartAI('自由練習')">✏️ 自由練習</button>
+      </div>
+    </div>
+
+    <div class="messages-area" id="messagesArea" style="display:none"></div>
+
+    <div class="input-area" id="aiInputArea" style="display:none">
+      <div class="input-toolbar">
+        <button class="tool-btn" id="btnTextMode" onclick="setVoiceMode(false)">⌨️ 文字模式</button>
+        <button class="tool-btn active" id="btnVoiceMode" onclick="setVoiceMode(true)">🎤 語音模式</button>
+        <button class="tool-btn" onclick="requestHint()">💡 提示</button>
+        <button class="tool-btn" onclick="requestFeedback()">📝 語法說明</button>
+      </div>
+
+      <!-- VOICE MODE UI -->
+      <div id="voiceModeUI">
+        <div class="voice-panel">
+          <div class="voice-circle-wrap">
+            <div class="voice-circle" id="voiceCircle" onclick="toggleVoice()">
+              <span id="voiceCircleIcon">🎤</span>
+            </div>
+            <div class="voice-ring" id="voiceRing"></div>
+          </div>
+          <div class="voice-label" id="voiceLabel">點擊開始說話</div>
+          <div class="voice-transcript" id="voiceTranscript"></div>
+        </div>
+      </div>
+
+      <!-- TEXT MODE UI -->
+      <div id="textModeUI" style="display:none">
+        <div class="input-row">
+          <textarea class="chat-input" id="chatInput" rows="1" placeholder="用日文輸入，或用羅馬字拼音也可以..." onkeydown="handleChatKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+        </div>
+        <div class="input-hint">按 Enter 送出・Shift+Enter 換行</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile bottom nav for AI page -->
+  <div class="mobile-nav">
+    <div class="mobile-nav-items">
+      <div class="mobile-nav-item" onclick="goToHome()"><span class="m-icon">🏠</span>主頁</div>
+      <div class="mobile-nav-item active"><span class="m-icon">🤖</span>AI練習</div>
+      <div class="mobile-nav-item" onclick="clearAIChat()"><span class="m-icon">🔄</span>重新開始</div>
+      <div class="mobile-nav-item" onclick="requestHint()"><span class="m-icon">💡</span>提示</div>
+      <div class="mobile-nav-item" onclick="requestFeedback()"><span class="m-icon">📝</span>語法</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ──
+const GEMINI_KEY = 'AIzaSyCPhYuOqfbbWE-3VEtbFfAnY91_24aj5Mg';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+const DEMO_ACCOUNTS = {
+  student: { 'student01': { pw:'pass1234', name:'田中 小明', cls:'初級日語 A班・N5目標' }, 'student02': { pw:'abc123', name:'林 美惠', cls:'中級日語 B班・N3目標' } },
+  teacher: { 'teacher01': { pw:'teach2025', name:'永漢教師', cls:'教師帳號・後台管理' } }
+};
+
+// ── STATE ──
+let currentUser = null;
+let loginRole = 'student';
+let conversationHistory = [];
+let aiIsLoading = false;
+let currentTopic = { name:'趣味の会話', icon:'🎯', desc:'詢問興趣・第8課教材', system:'趣味について話す練習' };
+
+// ── PAGE NAVIGATION ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+}
+function goToHome() { showPage('home'); }
+function goToAI() { showPage('ai'); }
+function doLogout() { currentUser = null; showPage('login'); document.getElementById('inputId').value=''; document.getElementById('inputPw').value=''; document.getElementById('loginBtn').textContent='登入'; }
+
+// ── LOGIN ──
+function setLoginRole(role) {
+  loginRole = role;
+  document.getElementById('btnStudent').classList.toggle('active', role==='student');
+  document.getElementById('btnTeacher').classList.toggle('active', role==='teacher');
+  document.getElementById('inputId').placeholder = role==='teacher' ? '請輸入教師帳號' : '請輸入學員帳號';
+  document.getElementById('idHint').textContent = role==='teacher' ? '教師帳號由管理員提供' : '帳號由老師提供';
+  document.getElementById('loginError').classList.remove('show');
+}
+function doLogin() {
+  const id = document.getElementById('inputId').value.trim();
+  const pw = document.getElementById('inputPw').value;
+  const btn = document.getElementById('loginBtn');
+  document.getElementById('loginError').classList.remove('show');
+  btn.innerHTML = '<span class="spinner"></span>驗證中...';
+  setTimeout(() => {
+    const accts = DEMO_ACCOUNTS[loginRole];
+    if (accts[id] && accts[id].pw === pw) {
+      currentUser = { ...accts[id], id, role: loginRole };
+      document.getElementById('sidebarName').textContent = currentUser.name;
+      document.getElementById('sidebarClass').textContent = currentUser.cls;
+      document.getElementById('aiSidebarUser').textContent = currentUser.name + '・' + currentUser.cls.split('・')[0];
+      setGreeting();
+      setTodayDate();
+      showPage('home');
+      btn.textContent = '登入';
+    } else {
+      document.getElementById('loginError').classList.add('show');
+      btn.textContent = '登入';
+      document.getElementById('inputPw').value = '';
+      document.getElementById('inputPw').focus();
+    }
+  }, 1000);
+}
+function setGreeting() {
+  const h = new Date().getHours();
+  const g = h < 12 ? '早安！おはようございます 🌸' : h < 18 ? '午安！こんにちは ☀️' : '晚安！こんばんは 🌙';
+  document.getElementById('greetingMsg').textContent = g + '　' + (currentUser?.name || '');
+}
+function setTodayDate() {
+  const d = new Date();
+  document.getElementById('todayDate').textContent = d.getFullYear() + '年 ' + (d.getMonth()+1) + '月 ' + d.getDate() + '日';
+}
+
+// ── HOME NAVIGATION ──
+const homeTitles = { dashboard:'學習主頁', materials:'班級教材', videos:'課程錄影', quiz:'測驗 / 考卷', stats:'學習紀錄' };
+function switchHome(id, el) {
+  document.querySelectorAll('.h-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('hs-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('#page-home .mobile-nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.getElementById('homeTopbarTitle').textContent = homeTitles[id] || '';
+}
+
+// ── AI CHAT ──
+function buildSystemPrompt(isVoiceMode = false) {
+  const diff = document.getElementById('difficulty').value;
+  const diffMap = { easy:'初級（N5程度）', mid:'中級（N3程度）', hard:'高級（N1程度）' };
+
+  if (isVoiceMode) {
+    return `你是永漢日語補習班的 AI 日語會話練習助手，幫助台灣學生練習日語口語。
+主題：${currentTopic.name}（${currentTopic.system}）
+程度：${diffMap[diff]}
+每次回覆必須嚴格遵守以下格式，不可省略：
+第一行：純日文回應（簡短自然的對話句）
+第二行：中文翻譯：加上第一行日文的中文意思
+有語法錯誤時才加第三行：語法提醒：加上說明
+範例：
+はじめまして！どうぞよろしくお願いします。
+中文翻譯：你好！請多多關照。`;
+  }
+
+  return `你是永漢日語補習班的 AI 日語會話練習助手，專門幫助台灣學生練習日語口語。
+目前練習主題：${currentTopic.name}（${currentTopic.system}）
+學生程度：${diffMap[diff]}
+對話規則：
+1. 每次回覆都用日文進行自然對話，主動推進對話情境
+2. 如果學生的日文有語法錯誤，在日文回應之後，用繁體中文提供簡短說明（標示為【語法提醒】）
+3. 如果學生用羅馬字輸入，幫他轉換為正確日文後繼續對話
+4. 回覆格式嚴格遵守：
+   第一行：日文回應（只有日文，不混中文）
+   第二行：【中文翻譯】（你說的日文的中文意思）
+   有錯誤時才加：【語法提醒】（錯誤說明）
+5. 保持親切有耐心的語氣，鼓勵學生多說
+6. 使用${diffMap[diff]}對應的詞彙和文法`;
+}
+
+async function startAISession() {
+  document.getElementById('aiWelcome').style.display = 'none';
+  document.getElementById('messagesArea').style.display = 'flex';
+  document.getElementById('aiInputArea').style.display = 'block';
+  conversationHistory = [];
+  showTyping();
+  try {
+    const initText = `開始${currentTopic.name}的練習。請用日文打招呼，並自然引導學生進入「${currentTopic.system}」情境，第一句話要簡單自然。`;
+    const res = await fetch(GEMINI_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[
+          {role:'user', parts:[{text: buildSystemPrompt(voiceMode)}]},
+          {role:'model', parts:[{text: voiceMode ? '了解，語音模式，我只會用日文回覆。' : '了解，我會按照規則進行日語對話練習。'}]},
+          {role:'user', parts:[{text: initText}]}
+        ],
+        generationConfig:{temperature:0.8, maxOutputTokens:400}
+      })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
+    const data = await res.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!reply) throw new Error('Empty response');
+    conversationHistory.push({role:'model', parts:[{text:reply}]});
+    removeTyping();
+    addAIMessage(reply);
+    if (voiceMode) speakAndListen(reply);
+  } catch(e) {
+    removeTyping();
+    console.error('startAISession error:', e);
+    const fallback = 'こんにちは！練習を始めましょう。\n\n【中文翻譯】你好！讓我們開始練習吧。（API錯誤：' + e.message + '）';
+    addAIMessage(fallback);
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || aiIsLoading) return;
+  input.value = ''; autoResize(input);
+  addUserMessage(text);
+  conversationHistory.push({role:'user', parts:[{text}]});
+  aiIsLoading = true;
+  document.getElementById('sendBtn').disabled = true;
+  showTyping();
+  try {
+    const msgs = [
+      {role:'user', parts:[{text: buildSystemPrompt(false)}]},
+      {role:'model', parts:[{text:'了解，我會按照規則進行日語對話練習。'}]}
+    ];
+    for (const m of conversationHistory) { msgs.push(m); }
+    const res = await fetch(GEMINI_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contents: msgs, generationConfig:{temperature:0.8, maxOutputTokens:600}})
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
+    const data = await res.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!reply) throw new Error('Empty response');
+    conversationHistory.push({role:'model', parts:[{text:reply}]});
+    removeTyping();
+    addAIMessage(reply);
+  } catch(e) {
+    removeTyping();
+    addAIMessage('エラー：' + e.message + '\n\n【中文翻譯】錯誤：' + e.message);
+  } finally {
+    aiIsLoading = false;
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+async function requestHint() {
+  if (aiIsLoading) return;
+  aiIsLoading = true; document.getElementById('sendBtn') && (document.getElementById('sendBtn').disabled = true);
+  showTyping();
+  try {
+    const res = await fetch(GEMINI_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{role:'user', parts:[{text: buildSystemPrompt() + '\n\n學生需要提示，請用繁體中文說明在這個情境下可以說什麼，給1-2個範例句子（日文+中文）。'}]}],
+        generationConfig:{temperature:0.7, maxOutputTokens:300}
+      })
+    });
+    const data = await res.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '提示功能暫時無法使用。';
+    removeTyping(); addAIMessage('💡 ' + reply);
+  } catch(e) { removeTyping(); addAIMessage('💡 提示功能暫時無法使用，請重試。'); }
+  finally { aiIsLoading = false; document.getElementById('sendBtn') && (document.getElementById('sendBtn').disabled = false); }
+}
+
+async function requestFeedback() {
+  const lastUser = [...conversationHistory].reverse().find(m => m.role==='user');
+  if (!lastUser || aiIsLoading) return;
+  aiIsLoading = true; document.getElementById('sendBtn') && (document.getElementById('sendBtn').disabled = true);
+  showTyping();
+  try {
+    const res = await fetch(GEMINI_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{role:'user', parts:[{text: buildSystemPrompt() + `\n\n請針對學生說的「${lastUser.parts[0].text}」，用繁體中文做完整語法分析：1.指出正確或錯誤的地方 2.說明為什麼 3.給出更自然的說法`}]}],
+        generationConfig:{temperature:0.5, maxOutputTokens:500}
+      })
+    });
+    const data = await res.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '語法分析暫時無法使用。';
+    removeTyping(); addFeedbackMessage(reply);
+  } catch(e) { removeTyping(); addAIMessage('📝 語法分析暫時無法使用，請重試。'); }
+  finally { aiIsLoading = false; document.getElementById('sendBtn') && (document.getElementById('sendBtn').disabled = false); }
+}
+
+function parseMsg(text) {
+  const lines = text.split('\n');
+  let jp='', zh='', grammar='', cur='jp';
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+    // Detect Chinese translation line - support multiple formats
+    const isZh = t.includes('中文翻譯') || t.includes('翻譯：') || t.includes('翻譯:') ||
+                 (cur==='jp' && /^[一-鿿]/.test(t) && jp.length > 0);
+    const isGrammar = t.includes('語法提醒') || t.includes('語法：') || t.includes('語法:');
+    if (isGrammar) {
+      cur = 'grammar';
+      grammar += t.replace(/^.*?(語法提醒|語法)[：:】]?\s*/, '').trim() + ' ';
+    } else if (isZh) {
+      cur = 'zh';
+      zh += t.replace(/^.*?(中文翻譯|翻譯)[：:】]?\s*/, '').trim() + ' ';
+    } else if (cur === 'jp') {
+      jp += t + ' ';
+    } else if (cur === 'zh') {
+      zh += t + ' ';
+    } else if (cur === 'grammar') {
+      grammar += t + ' ';
+    }
+  }
+  return { jp: jp.trim(), zh: zh.trim(), grammar: grammar.trim() };
+}
+
+function addAIMessage(text) {
+  const area = document.getElementById('messagesArea');
+  const showTrans = document.getElementById('showTranslation').value==='yes';
+  const p = parseMsg(text);
+  const jpText = p.jp || text;
+  const msgId = 'msg-' + Date.now();
+  const row = document.createElement('div'); row.className = 'msg-row';
+  let html = '<div class="msg-avatar avatar-ai">&#x1F916;</div><div class="msg-content"><div class="msg-bubble bubble-ai"><div class="msg-jp">' + jpText + '</div>';
+  if (showTrans && p.zh) html += '<div class="msg-zh">' + p.zh + '</div>';
+  html += '</div>';
+  if (p.grammar) html += '<div class="feedback-box"><div class="fb-label">&#x8A9E;&#x6CD5;&#x63D0;&#x9192;</div>' + p.grammar + '</div>';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-top:2px"><div class="msg-time">' + getTime() + '</div><button class="tts-btn" data-jp="' + msgId + '">&#x1F50A; &#x6717;&#x8B80;</button></div></div>';
+  row.innerHTML = html;
+  const ttsBtn = row.querySelector('.tts-btn');
+  if (ttsBtn) ttsBtn.addEventListener('click', function(){ speakText(jpText, this); });
+  area.appendChild(row); area.scrollTop = area.scrollHeight;
+  if (autoTTS && !voiceMode) speakJapanese(jpText);
+}
+function addFeedbackMessage(text) {
+  const area = document.getElementById('messagesArea');
+  const row = document.createElement('div'); row.className = 'msg-row';
+  row.innerHTML = `<div class="msg-avatar avatar-ai">📝</div><div class="msg-content"><div class="feedback-box" style="max-width:500px"><div class="fb-label">語法詳細分析</div>${text}</div><div class="msg-time">${getTime()}</div></div>`;
+  area.appendChild(row); area.scrollTop = area.scrollHeight;
+}
+function addUserMessage(text) {
+  const area = document.getElementById('messagesArea');
+  const row = document.createElement('div'); row.className = 'msg-row user';
+  row.innerHTML = `<div class="msg-avatar avatar-user">🎓</div><div class="msg-content"><div class="msg-bubble bubble-user">${text}</div><div class="msg-time">${getTime()}</div></div>`;
+  area.appendChild(row); area.scrollTop = area.scrollHeight;
+}
+function showTyping() {
+  const area = document.getElementById('messagesArea');
+  if (!area || area.style.display==='none') return;
+  const row = document.createElement('div'); row.className='msg-row'; row.id='typingRow';
+  row.innerHTML=`<div class="msg-avatar avatar-ai">🤖</div><div class="msg-content"><div class="msg-bubble bubble-ai"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div></div>`;
+  area.appendChild(row); area.scrollTop=area.scrollHeight;
+}
+function removeTyping() { const t=document.getElementById('typingRow'); if(t) t.remove(); }
+function getTime() { return new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); }
+
+function selectTopic(el, name, icon, desc, level, system) {
+  document.querySelectorAll('.topic-item').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  currentTopic = {name, icon, desc, system};
+  document.getElementById('aiTopicIcon').textContent = icon;
+  document.getElementById('aiTopicName').textContent = name;
+  document.getElementById('aiTopicDesc').textContent = desc;
+  resetAIWelcome();
+}
+function quickStartAI(name) {
+  document.querySelectorAll('.topic-item').forEach(el => {
+    if (el.querySelector('h4')?.textContent===name) el.click();
+  });
+  setTimeout(startAISession, 50);
+}
+function clearAIChat() { document.getElementById('messagesArea').innerHTML=''; conversationHistory=[]; startAISession(); }
+function resetAIWelcome() {
+  document.getElementById('messagesArea').style.display='none';
+  document.getElementById('aiInputArea').style.display='none';
+  document.getElementById('aiWelcome').style.display='flex';
+  document.getElementById('messagesArea').innerHTML='';
+  conversationHistory=[];
+}
+function handleChatKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+function toggleInputMode(mode) {
+  document.getElementById('btnRomaji').classList.toggle('active',mode==='romaji');
+  document.getElementById('btnJp').classList.toggle('active',mode==='jp');
+  document.getElementById('chatInput').placeholder = mode==='romaji' ? '用羅馬字輸入，例如：watashi wa gakusei desu' : '用日文輸入，例如：私は学生です';
+}
+
+// ── VOICE MODE ──
+let voiceMode = true;
+let recognition = null;
+let isListening = false;
+let autoTTS = true;
+let isSpeaking = false;
+
+function setVoiceMode(on) {
+  voiceMode = on;
+  document.getElementById('btnVoiceMode').classList.toggle('active', on);
+  document.getElementById('btnTextMode').classList.toggle('active', !on);
+  document.getElementById('voiceModeUI').style.display = on ? 'block' : 'none';
+  document.getElementById('textModeUI').style.display = on ? 'none' : 'block';
+  if (!on && isListening) stopListening();
+}
+
+function setVoiceState(state) {
+  // state: idle | listening | thinking | speaking
+  const circle = document.getElementById('voiceCircle');
+  const ring = document.getElementById('voiceRing');
+  const label = document.getElementById('voiceLabel');
+  const icon = document.getElementById('voiceCircleIcon');
+  circle.className = 'voice-circle';
+  ring.className = 'voice-ring';
+  if (state === 'listening') {
+    circle.classList.add('listening'); ring.classList.add('active');
+    label.textContent = '正在聆聽... 說完後請稍停';
+    icon.textContent = '⏹';
+  } else if (state === 'thinking') {
+    circle.classList.add('thinking');
+    label.textContent = 'AI 思考中...';
+    icon.textContent = '⏳';
+  } else if (state === 'speaking') {
+    circle.classList.add('speaking');
+    label.textContent = 'AI 說話中... 點擊可中斷';
+    icon.textContent = '🔊';
+  } else {
+    label.textContent = '點擊開始說話';
+    icon.textContent = '🎤';
+  }
+}
+
+function toggleVoice() {
+  if (isSpeaking) { window.speechSynthesis && window.speechSynthesis.cancel(); isSpeaking=false; setVoiceState('idle'); return; }
+  if (isListening) { stopListening(); return; }
+  startListening();
+}
+
+function initRecognitionOnce() {
+  if (recognition) return true;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
+    return false;
+  }
+  recognition = new SR();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.onstart = () => {
+    isListening = true;
+    setVoiceState('listening');
+    document.getElementById('voiceTranscript').textContent = '';
+  };
+  let silenceTimer = null;
+  let accumulatedText = '';
+  recognition.onresult = (e) => {
+    let interim='', final='';
+    for (let i=e.resultIndex; i<e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        accumulatedText += e.results[i][0].transcript;
+        final = accumulatedText;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    const display = accumulatedText + (interim ? ' ' + interim : '');
+    document.getElementById('voiceTranscript').textContent = display;
+    // Reset silence timer on each result - send after 2 seconds of silence
+    if (silenceTimer) clearTimeout(silenceTimer);
+    if (accumulatedText) {
+      silenceTimer = setTimeout(() => {
+        recognition.stop();
+      }, 2000);
+    }
+  };
+  recognition.onend = () => {
+    isListening = false;
+    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    const transcript = accumulatedText.trim() ||
+      document.getElementById('voiceTranscript').textContent.trim();
+    accumulatedText = '';
+    if (transcript) {
+      setVoiceState('thinking');
+      sendVoiceMessage(transcript);
+    } else {
+      setVoiceState('idle');
+    }
+  };
+  recognition.onerror = (e) => {
+    isListening = false;
+    setVoiceState('idle');
+    if (e.error === 'not-allowed') {
+      alert('請允許麥克風權限：\n點網址列左側鎖頭 → 麥克風 → 允許，然後重新整理頁面。');
+      recognition = null;
+    } else if (e.error === 'network') {
+      alert('語音辨識需要網路連線');
+    }
+  };
+  return true;
+}
+
+function startListening() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  if (!initRecognitionOnce()) return;
+  // Reset accumulated text
+  try {
+    recognition.start();
+  } catch(e) {
+    if (e.name === 'InvalidStateError') {
+      // Already started or ended - just wait for onend
+      console.log('Recognition busy, waiting...');
+    } else {
+      console.log('Recognition error:', e.name);
+      setVoiceState('idle');
+    }
+  }
+}
+
+function stopListening() {
+  if (recognition) { try { recognition.stop(); } catch(e){} }
+  isListening = false;
+  setVoiceState('idle');
+}
+
+async function sendVoiceMessage(text) {
+  if (!text || aiIsLoading) return;
+  addUserMessage(text);
+  conversationHistory.push({role:'user', parts:[{text}]});
+  aiIsLoading = true;
+  setVoiceState('thinking');
+  try {
+    const msgs = [
+      {role:'user', parts:[{text: buildSystemPrompt(true)}]},
+      {role:'model', parts:[{text:'了解，語音模式，我只用日文回覆，不輸出任何中文。'}]}
+    ];
+    for (const m of conversationHistory) { msgs.push(m); }
+    const res = await fetch(GEMINI_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents: msgs,
+        generationConfig:{temperature:0.8, maxOutputTokens:300}
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error?.message || 'API error ' + res.status);
+    }
+    const data = await res.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!reply) throw new Error('Empty response from Gemini');
+    conversationHistory.push({role:'model', parts:[{text:reply}]});
+    addAIMessage(reply);
+    speakAndListen(reply);
+  } catch(e) {
+    setVoiceState('idle');
+    addAIMessage('エラー：' + e.message);
+  } finally {
+    aiIsLoading = false;
+  }
+}
+
+function extractJpOnly(text) {
+  // Only keep lines before the Chinese translation section
+  const lines = text.split('\n');
+  const jpLines = [];
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+    // Stop when we hit a translation/grammar marker
+    if (t.includes('中文翻譯') || t.includes('翻譯：') || t.includes('翻譯:') ||
+        t.includes('語法提醒') || t.includes('語法：') || t.includes('語法:')) break;
+    // Stop if line is mostly Chinese (translation line without marker)
+    const cjk = (t.match(/[一-鿿]/g) || []).length;
+    if (jpLines.length > 0 && cjk / t.length > 0.5) break;
+    jpLines.push(t);
+  }
+  return jpLines.join('　').trim() || text.split('\n')[0];
+}
+
+
+function speakAndListen(text) {
+  if (!window.speechSynthesis) { setVoiceState('idle'); return; }
+  const jpText = extractJpOnly(text);
+  console.log('[TTS 朗讀內容]', jpText);
+  if (!jpText) { setVoiceState('idle'); return; }
+  const utt = new SpeechSynthesisUtterance(jpText);
+  utt.lang = 'ja-JP'; utt.rate = 0.85; utt.pitch = 1.0;
+  const voices = window.speechSynthesis.getVoices();
+  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  if (jpVoice) utt.voice = jpVoice;
+  isSpeaking = true;
+  setVoiceState('speaking');
+  utt.onend = () => {
+    isSpeaking = false;
+    setVoiceState('idle');
+    // Don't auto-restart - let user tap the circle to speak
+    // This avoids repeated microphone permission popups on local files
+  };
+  utt.onerror = () => { isSpeaking=false; setVoiceState('idle'); };
+  window.speechSynthesis.speak(utt);
+}
+
+function speakJapanese(text) {
+  if (!window.speechSynthesis || !autoTTS) return;
+  window.speechSynthesis.cancel();
+  const jpText = extractJpOnly(text);
+  if (!jpText) return;
+  const utt = new SpeechSynthesisUtterance(jpText);
+  utt.lang = 'ja-JP'; utt.rate = 0.85; utt.pitch = 1.0;
+  const voices = window.speechSynthesis.getVoices();
+  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  if (jpVoice) utt.voice = jpVoice;
+  window.speechSynthesis.speak(utt);
+}
+
+function speakText(text, btnEl) {
+  if (!window.speechSynthesis) { alert('您的瀏覽器不支援語音朗讀'); return; }
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    document.querySelectorAll('.tts-btn').forEach(b=>b.classList.remove('speaking'));
+    return;
+  }
+  const jpText = extractJpOnly(text);
+  if (!jpText) return;
+  const utt = new SpeechSynthesisUtterance(jpText);
+  utt.lang = 'ja-JP'; utt.rate = 0.85;
+  const voices = window.speechSynthesis.getVoices();
+  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  if (jpVoice) utt.voice = jpVoice;
+  if (btnEl) { btnEl.classList.add('speaking'); utt.onend=()=>btnEl.classList.remove('speaking'); utt.onerror=()=>btnEl.classList.remove('speaking'); }
+  window.speechSynthesis.speak(utt);
+}
+
+function toggleAutoTTS() {
+  autoTTS = !autoTTS;
+  const btn = document.getElementById('btnAutoTTS');
+  if (btn) btn.textContent = autoTTS ? '🔊 自動朗讀：開' : '🔇 自動朗讀：關';
+  if (!autoTTS && window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+// Preload voices
+if (window.speechSynthesis) {
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.addEventListener('voiceschanged', () => window.speechSynthesis.getVoices());
+}
+
+</script>
+</body>
+</html>function buildSystemPrompt(isVoiceMode) {
+  const diff = document.getElementById('difficulty').value;
+  const diffMap = { easy:'初級（N5程度）', mid:'中級（N3程度）', hard:'高級（N1程度）' };
+  const level = diffMap[diff];
+  const topicName = currentTopic.name;
+  const topicSystem = currentTopic.system;
+
+  if (isVoiceMode) {
+    return `你是永漢日語補習班的 AI 日語會話練習助手，幫助台灣學生練習日語口語。
+主題：${topicName}（${topicSystem}）　程度：${level}
+回覆規則（非常重要）：
+1. 第一行：純日文回應，不夾雜任何中文
+2. 第二行必須是：中文翻譯：加上日文的中文意思
+3. 學生有錯誤時，第三行才加：語法提醒：加上說明
+4. 句子要簡短自然，像真實對話
+5. 使用${level}對應的詞彙`;
+  }
+
+  return `你是永漢日語補習班的 AI 日語會話練習助手，專門幫助台灣學生練習日語口語。
+目前練習主題：${topicName}（${topicSystem}）
+學生程度：${level}
+對話規則：
+1. 每次回覆都用日文進行自然對話，主動推進對話情境
+2. 如果學生的日文有語法錯誤，在日文回應之後，用繁體中文提供簡短說明（標示為語法提醒）
+3. 如果學生用羅馬字輸入，幫他轉換為正確日文後繼續對話
+4. 回覆格式：第一行純日文回應，第二行寫「中文翻譯：」加上意思，有錯誤才加「語法提醒：」
+5. 保持親切有耐心的語氣，鼓勵學生多說
+6. 使用${level}對應的詞彙和文法`;
+}
+
+
