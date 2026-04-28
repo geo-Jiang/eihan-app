@@ -760,15 +760,15 @@ function buildSystemPrompt() {
 }
 
 function buildAnalysisPrompt(studentText, aiJpReply) {
-  const studentPart = studentText ? `學生說的話：「${studentText}」` : '';
-  return `你是日語教學助手，請完成以下兩項，格式嚴格固定，每項必須完整不可截斷：
-
-AI說的日文：「${aiJpReply}」
-${studentPart}
-
-請輸出：
-中文翻譯：（把AI說的整句日文完整翻譯成中文，必須是完整的句子）
-語法檢查：（${studentText ? '判斷學生說的是否正確，正確就寫「正確」，有錯誤就說明並給出正確說法' : '正確'})`;
+  const studentLine = studentText ? ('學生說的話：' + studentText) : '';
+  const grammarInstr = studentText
+    ? '判斷學生說的是否正確，正確就寫「正確」，有錯誤就說明並給出正確說法'
+    : '正確';
+  var prompt = '你是日語教學助手，請完成以下兩項，格式固定：';
+  prompt += 'AI說的日文：' + aiJpReply;
+  if (studentLine) { prompt += ' ' + studentLine; }
+  prompt += ' 請輸出：中文翻譯：（把上面AI說的日文完整翻譯）語法檢查：（' + grammarInstr + '）';
+  return prompt;
 }
 
 
@@ -850,7 +850,7 @@ async function sendMessage() {
 
 async function getAnalysis(studentText, jpReply) {
   try {
-    const res = await fetch(GEMINI_URL, {
+    var res = await fetch(GEMINI_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{role:'user', parts:[{text: buildAnalysisPrompt(studentText, jpReply)}]}],
@@ -858,24 +858,20 @@ async function getAnalysis(studentText, jpReply) {
       })
     });
     if (!res.ok) return {zh:'', grammar:''};
-    const data = await res.json();
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    let zh = '', grammar = '';
-    const zhIdx = raw.indexOf('中文翻譯');
-    const grIdx = raw.indexOf('語法檢查');
+    var data = await res.json();
+    var raw = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
+    var zh = '', grammar = '';
+    var zhIdx = raw.indexOf('中文翻譯');
+    var grIdx = raw.indexOf('語法檢查');
     if (zhIdx !== -1) {
-      const zhEnd = grIdx !== -1 ? grIdx : raw.length;
-      zh = raw.substring(zhIdx, zhEnd)
-        .replace('中文翻譯：', '').replace('中文翻譯:', '')
-        .split('\n').join(' ').trim();
+      var zhEnd = grIdx !== -1 ? grIdx : raw.length;
+      zh = raw.substring(zhIdx, zhEnd).replace('中文翻譯：','').replace('中文翻譯:','').trim();
     }
     if (grIdx !== -1) {
-      grammar = raw.substring(grIdx)
-        .replace('語法檢查：', '').replace('語法檢查:', '')
-        .split('\n').join(' ').trim();
+      grammar = raw.substring(grIdx).replace('語法檢查：','').replace('語法檢查:','').trim();
     }
-    const isCorrect = grammar.includes('正確') && grammar.length < 15;
-    return { zh, grammar: isCorrect ? '' : grammar };
+    var isCorrect = grammar.indexOf('正確') !== -1 && grammar.length < 15;
+    return { zh: zh, grammar: isCorrect ? '' : grammar };
   } catch(e) {
     return {zh:'', grammar:''};
   }
