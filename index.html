@@ -629,6 +629,13 @@ html, body { height: 100%; font-family: 'Noto Sans TC', sans-serif; background: 
         <button class="tool-btn active" id="btnVoiceMode" onclick="setVoiceMode(true)">🎤 語音模式</button>
         <button class="tool-btn" onclick="requestHint()">💡 提示</button>
         <button class="tool-btn" onclick="requestFeedback()">📝 語法說明</button>
+        <button class="tool-btn" onclick="showVoiceList()" title="查看可用語音">🔊 語音選擇</button>
+      </div>
+      <div id="voiceListPanel" style="display:none;background:#EEF2F8;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:12px;">
+        <div style="font-weight:600;color:#2A4273;margin-bottom:6px;">裝置可用日文語音：</div>
+        <select id="voiceSelector" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;font-size:12px;font-family:'Noto Sans TC',sans-serif;" onchange="setPreferredVoice(this.value)">
+        </select>
+        <div style="color:#6E788C;margin-top:5px;">選擇後點朗讀按鈕測試效果</div>
       </div>
 
       <!-- VOICE MODE UI -->
@@ -1219,6 +1226,11 @@ function speakAndListen(text) {
   utt.lang = 'ja-JP'; utt.rate = 0.82; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
   const jpVoice = (function() {
+    // Use manually selected voice if set
+    if (window._preferredVoiceName) {
+      var pv = voices.find(function(v) { return v.name === window._preferredVoiceName; });
+      if (pv) return pv;
+    }
     // Priority 1: Google 日本語 (Chrome)
     var v = voices.find(function(v) { return v.name === 'Google 日本語'; });
     if (v) return v;
@@ -1259,6 +1271,11 @@ function speakJapanese(text) {
   utt.lang = 'ja-JP'; utt.rate = 0.82; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
   const jpVoice = (function() {
+    // Use manually selected voice if set
+    if (window._preferredVoiceName) {
+      var pv = voices.find(function(v) { return v.name === window._preferredVoiceName; });
+      if (pv) return pv;
+    }
     // Priority 1: Google 日本語 (Chrome)
     var v = voices.find(function(v) { return v.name === 'Google 日本語'; });
     if (v) return v;
@@ -1294,6 +1311,11 @@ function speakText(text, btnEl) {
   utt.lang = 'ja-JP'; utt.rate = 0.82;
   const voices = window.speechSynthesis.getVoices();
   const jpVoice = (function() {
+    // Use manually selected voice if set
+    if (window._preferredVoiceName) {
+      var pv = voices.find(function(v) { return v.name === window._preferredVoiceName; });
+      if (pv) return pv;
+    }
     // Priority 1: Google 日本語 (Chrome)
     var v = voices.find(function(v) { return v.name === 'Google 日本語'; });
     if (v) return v;
@@ -1322,6 +1344,43 @@ function toggleAutoTTS() {
   const btn = document.getElementById('btnAutoTTS');
   if (btn) btn.textContent = autoTTS ? '🔊 自動朗讀：開' : '🔇 自動朗讀：關';
   if (!autoTTS && window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function showVoiceList() {
+  var panel = document.getElementById('voiceListPanel');
+  var sel = document.getElementById('voiceSelector');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    var voices = window.speechSynthesis.getVoices();
+    var jpVoices = voices.filter(function(v) { return v.lang && v.lang.startsWith('ja'); });
+    sel.innerHTML = '';
+    if (jpVoices.length === 0) {
+      sel.innerHTML = '<option>找不到日文語音，請確認裝置設定</option>';
+    } else {
+      jpVoices.forEach(function(v, i) {
+        var opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = v.name + ' (' + v.lang + ')';
+        if (v.name === window._preferredVoiceName) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function setPreferredVoice(name) {
+  window._preferredVoiceName = name;
+  var voices = window.speechSynthesis.getVoices();
+  var v = voices.find(function(v) { return v.name === name; });
+  if (v) {
+    var test = new SpeechSynthesisUtterance('こんにちは、よろしくお願いします。');
+    test.lang = 'ja-JP';
+    test.voice = v;
+    test.rate = 0.82;
+    window.speechSynthesis.speak(test);
+  }
 }
 
 // Preload voices
