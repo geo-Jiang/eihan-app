@@ -1216,9 +1216,27 @@ function speakAndListen(text) {
   console.log('[TTS 朗讀內容]', jpText);
   if (!jpText) { setVoiceState('idle'); return; }
   const utt = new SpeechSynthesisUtterance(jpText);
-  utt.lang = 'ja-JP'; utt.rate = 0.85; utt.pitch = 1.0;
+  utt.lang = 'ja-JP'; utt.rate = 0.82; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
-  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  const jpVoice = (function() {
+    // Priority 1: Google 日本語 (Chrome)
+    var v = voices.find(function(v) { return v.name === 'Google 日本語'; });
+    if (v) return v;
+    // Priority 2: Apple Kyoko - Tokyo accent (Mac/iPhone)
+    v = voices.find(function(v) { return v.name.indexOf('Kyoko') !== -1; });
+    if (v) return v;
+    // Priority 3: Apple Otoya (Mac)
+    v = voices.find(function(v) { return v.name.indexOf('Otoya') !== -1; });
+    if (v) return v;
+    // Priority 4: Microsoft Nanami (Windows)
+    v = voices.find(function(v) { return v.name.indexOf('Nanami') !== -1; });
+    if (v) return v;
+    // Priority 5: Any ja-JP voice
+    v = voices.find(function(v) { return v.lang === 'ja-JP'; });
+    if (v) return v;
+    // Priority 6: Any Japanese voice
+    return voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
+  })();
   if (jpVoice) utt.voice = jpVoice;
   isSpeaking = true;
   setVoiceState('speaking');
@@ -1238,9 +1256,27 @@ function speakJapanese(text) {
   const jpText = extractJpOnly(text);
   if (!jpText) return;
   const utt = new SpeechSynthesisUtterance(jpText);
-  utt.lang = 'ja-JP'; utt.rate = 0.85; utt.pitch = 1.0;
+  utt.lang = 'ja-JP'; utt.rate = 0.82; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
-  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  const jpVoice = (function() {
+    // Priority 1: Google 日本語 (Chrome)
+    var v = voices.find(function(v) { return v.name === 'Google 日本語'; });
+    if (v) return v;
+    // Priority 2: Apple Kyoko - Tokyo accent (Mac/iPhone)
+    v = voices.find(function(v) { return v.name.indexOf('Kyoko') !== -1; });
+    if (v) return v;
+    // Priority 3: Apple Otoya (Mac)
+    v = voices.find(function(v) { return v.name.indexOf('Otoya') !== -1; });
+    if (v) return v;
+    // Priority 4: Microsoft Nanami (Windows)
+    v = voices.find(function(v) { return v.name.indexOf('Nanami') !== -1; });
+    if (v) return v;
+    // Priority 5: Any ja-JP voice
+    v = voices.find(function(v) { return v.lang === 'ja-JP'; });
+    if (v) return v;
+    // Priority 6: Any Japanese voice
+    return voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
+  })();
   if (jpVoice) utt.voice = jpVoice;
   window.speechSynthesis.speak(utt);
 }
@@ -1255,9 +1291,27 @@ function speakText(text, btnEl) {
   const jpText = extractJpOnly(text);
   if (!jpText) return;
   const utt = new SpeechSynthesisUtterance(jpText);
-  utt.lang = 'ja-JP'; utt.rate = 0.85;
+  utt.lang = 'ja-JP'; utt.rate = 0.82;
   const voices = window.speechSynthesis.getVoices();
-  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  const jpVoice = (function() {
+    // Priority 1: Google 日本語 (Chrome)
+    var v = voices.find(function(v) { return v.name === 'Google 日本語'; });
+    if (v) return v;
+    // Priority 2: Apple Kyoko - Tokyo accent (Mac/iPhone)
+    v = voices.find(function(v) { return v.name.indexOf('Kyoko') !== -1; });
+    if (v) return v;
+    // Priority 3: Apple Otoya (Mac)
+    v = voices.find(function(v) { return v.name.indexOf('Otoya') !== -1; });
+    if (v) return v;
+    // Priority 4: Microsoft Nanami (Windows)
+    v = voices.find(function(v) { return v.name.indexOf('Nanami') !== -1; });
+    if (v) return v;
+    // Priority 5: Any ja-JP voice
+    v = voices.find(function(v) { return v.lang === 'ja-JP'; });
+    if (v) return v;
+    // Priority 6: Any Japanese voice
+    return voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
+  })();
   if (jpVoice) utt.voice = jpVoice;
   if (btnEl) { btnEl.classList.add('speaking'); utt.onend=()=>btnEl.classList.remove('speaking'); utt.onerror=()=>btnEl.classList.remove('speaking'); }
   window.speechSynthesis.speak(utt);
