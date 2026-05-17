@@ -634,12 +634,12 @@ html, body { height: 100%; font-family: 'Noto Sans TC', sans-serif; background: 
       <div id="ttsPanel" style="display:none;background:#EEF2F8;border-radius:10px;padding:12px 14px;margin-bottom:8px;">
         <div style="font-size:12px;font-weight:600;color:#2A4273;margin-bottom:8px;">Google Cloud AI 語音選擇</div>
         <select id="ttsVoiceSelector" style="width:100%;padding:7px;border-radius:6px;border:1px solid #ccc;font-size:12px;font-family:'Noto Sans TC',sans-serif;margin-bottom:8px;">
-          <option value="ja-JP-Neural2-C">Neural2-C（女聲・最自然・推薦）</option>
-          <option value="ja-JP-Neural2-B">Neural2-B（男聲・自然）</option>
+          <option value="ja-JP-Neural2-B">Neural2-B（女聲・最自然・推薦）</option>
+          <option value="ja-JP-Neural2-C">Neural2-C（男聲・自然）</option>
           <option value="ja-JP-Wavenet-A">Wavenet-A（女聲・清晰）</option>
+          <option value="ja-JP-Wavenet-D">Wavenet-D（女聲・活潑）</option>
           <option value="ja-JP-Wavenet-B">Wavenet-B（男聲・清晰）</option>
           <option value="ja-JP-Wavenet-C">Wavenet-C（男聲・低沉）</option>
-          <option value="ja-JP-Wavenet-D">Wavenet-D（女聲・活潑）</option>
         </select>
         <div style="display:flex;gap:8px;">
           <button onclick="testTTSVoice()" style="flex:1;padding:7px;background:#2A4273;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;">▶ 試聽</button>
@@ -1337,7 +1337,7 @@ function setPreferredVoice(name) {
 }
 
 // ── GOOGLE CLOUD TTS ──
-var currentTTSVoice = 'ja-JP-Neural2-C';
+var currentTTSVoice = 'ja-JP-Neural2-B';
 var ttsAudio = null;
 
 function showTTSPanel() {
