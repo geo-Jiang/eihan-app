@@ -21,7 +21,7 @@ export default async function handler(req, res) {
           input: { text: text },
           voice: {
             languageCode: 'ja-JP',
-            name: voiceName || 'ja-JP-Neural2-C'
+            name: voiceName || 'ja-JP-Neural2-B'
           },
           audioConfig: {
             audioEncoding: 'MP3',
