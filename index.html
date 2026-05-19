@@ -1093,7 +1093,8 @@ function toggleVoice() {
     var audio = getAudioPlayer();
     if (audio) {
       audio.pause();
-      audio.src = '';
+      audio.removeAttribute('src');
+      audio.load();
     }
     isSpeaking = false;
     setVoiceState('idle');
@@ -1102,6 +1103,14 @@ function toggleVoice() {
   if (isListening) {
     stopListening();
     return;
+  }
+  if (recognition) {
+    recognition.onstart = null;
+    recognition.onresult = null;
+    recognition.onend = null;
+    recognition.onerror = null;
+    try { recognition.abort(); } catch(e) {}
+    recognition = null;
   }
   startListening();
 }
@@ -1174,7 +1183,8 @@ function startListening() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   var audio = getTTSAudio();
   audio.pause();
-  audio.src = '';
+  audio.removeAttribute('src');
+  audio.load();
   isSpeaking = false;
   if (!initRecognitionOnce()) return;
   try {
@@ -1321,7 +1331,8 @@ function speakText(text, btnEl) {
   var audio = getTTSAudio();
   if (!audio.paused) {
     audio.pause();
-    audio.src = '';
+    audio.removeAttribute('src');
+    audio.load();
     document.querySelectorAll('.tts-btn').forEach(function(b) { b.classList.remove('speaking'); });
     return;
   }
@@ -1416,7 +1427,8 @@ function googleTTS(text, voiceName, callback) {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   var audio = getTTSAudio();
   audio.pause();
-  audio.src = '';
+  audio.removeAttribute('src');
+  audio.load();
   fetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1426,7 +1438,8 @@ function googleTTS(text, voiceName, callback) {
   .then(function(data) {
     if (data.audioContent) {
       audio.onended = function() {
-        audio.src = '';  // Release audio session BEFORE callback
+        audio.removeAttribute('src');
+        audio.load();
         if (callback) callback(true);
       };
       audio.onerror = function(e) {
