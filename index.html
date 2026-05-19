@@ -1088,8 +1088,24 @@ function setVoiceState(state) {
 }
 
 function toggleVoice() {
-  if (isSpeaking) { window.speechSynthesis && window.speechSynthesis.cancel(); isSpeaking=false; setVoiceState('idle'); return; }
-  if (isListening) { stopListening(); return; }
+  if (isSpeaking) {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    var audio = getAudioPlayer();
+    audio.pause(); audio.src = '';
+    isSpeaking = false;
+    setVoiceState('idle');
+    return;
+  }
+  if (isListening) {
+    stopListening();
+    return;
+  }
+  // Safety reset - if state is stuck, force reset before starting
+  isListening = false;
+  if (recognition) {
+    try { recognition.stop(); } catch(e) {}
+    recognition = null;
+  }
   startListening();
 }
 
@@ -1203,10 +1219,12 @@ async function sendVoiceMessage(text) {
     const jpReply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!jpReply) throw new Error('Empty response');
     conversationHistory.push({role:'model', parts:[{text: jpReply}]});
-    // Get translation + grammar analysis separately
     const analysis = await getAnalysis(text, jpReply);
     addAIMessageWithAnalysis(jpReply, analysis);
-    speakAndListen(jpReply);
+    // Wait for TTS to finish before releasing aiIsLoading
+    await new Promise(function(resolve) {
+      speakAndListenWithCallback(jpReply, resolve);
+    });
   } catch(e) {
     setVoiceState('idle');
     addAIMessageWithAnalysis('すみません、もう一度お願いします。', {zh:'抱歉，請再說一次。', grammar:''});
@@ -1233,25 +1251,33 @@ function extractJpOnly(text) {
 }
 
 function speakAndListen(text) {
+  speakAndListenWithCallback(text, null);
+}
+
+function speakAndListenWithCallback(text, onDone) {
   var jpText = extractJpOnly(text);
-  if (!jpText) { setVoiceState('idle'); return; }
+  if (!jpText) {
+    setVoiceState('idle');
+    if (onDone) onDone();
+    return;
+  }
   isSpeaking = true;
   setVoiceState('speaking');
   var safetyTimer = setTimeout(function() {
     isSpeaking = false;
-    setVoiceState('idle');
-    // Force release audio on timeout
     var audio = getAudioPlayer();
     audio.pause();
     audio.src = '';
+    setVoiceState('idle');
+    if (onDone) onDone();
   }, 30000);
   googleTTS(jpText, currentTTSVoice, function() {
     clearTimeout(safetyTimer);
     isSpeaking = false;
-    // Explicitly release audio session so iOS can open mic next
     var audio = getAudioPlayer();
     audio.src = '';
     setVoiceState('idle');
+    if (onDone) onDone();
   });
 }
 
