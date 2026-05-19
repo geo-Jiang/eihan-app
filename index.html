@@ -1429,6 +1429,7 @@ function googleTTS(text, voiceName, callback) {
   .then(function(data) {
     if (data.audioContent) {
       audio.onended = function() {
+        audio.src = '';  // Release audio session BEFORE callback
         if (callback) callback(true);
       };
       audio.onerror = function(e) {
