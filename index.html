@@ -1109,98 +1109,102 @@ function toggleVoice() {
   startListening();
 }
 
-var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-function startListening() {
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function initRecognitionOnce() {
+  if (recognition) return true;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
-    return;
+    return false;
   }
-  // Stop audio first (critical for iOS audio session)
+  recognition = new SR();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  let silenceTimer = null;
+  let accumulatedText = '';
+  recognition.onstart = () => {
+    isListening = true;
+    setVoiceState('listening');
+    document.getElementById('voiceTranscript').textContent = '';
+  };
+  recognition.onresult = (e) => {
+    let interim='', final='';
+    for (let i=e.resultIndex; i<e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        accumulatedText += e.results[i][0].transcript;
+        final = accumulatedText;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    const display = accumulatedText + (interim ? ' ' + interim : '');
+    document.getElementById('voiceTranscript').textContent = display;
+    if (silenceTimer) clearTimeout(silenceTimer);
+    if (accumulatedText) {
+      silenceTimer = setTimeout(() => {
+        recognition.stop();
+      }, 2000);
+    }
+  };
+  recognition.onend = () => {
+    isListening = false;
+    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    const transcript = accumulatedText.trim() || document.getElementById('voiceTranscript').textContent.trim();
+    accumulatedText = '';
+    if (transcript) {
+      setVoiceState('thinking');
+      sendVoiceMessage(transcript);
+    } else {
+      setVoiceState('idle');
+    }
+  };
+  recognition.onerror = (e) => {
+    console.error('Speech error:', e.error);
+    isListening = false;
+    setVoiceState('idle');
+    if (e.error === 'not-allowed') {
+      alert('請允許麥克風權限：\n點網址列左側鎖頭 → 麥克風 → 允許，然後重新整理頁面。');
+      recognition = null;
+    } else if (e.error === 'network') {
+      alert('語音辨識需要網路連線');
+    }
+  };
+  return true;
+}
+
+function doStartListening() {
+  if (!initRecognitionOnce()) return;
+  try {
+    recognition.start();
+  } catch(e) {
+    if (e.name === 'InvalidStateError') {
+      console.log('Recognition busy, waiting...');
+    } else {
+      console.log('Recognition error:', e.name);
+      setVoiceState('idle');
+    }
+  }
+}
+
+function startListening() {
+  // Stop all TTS audio first
   var audio = getTTSAudio();
   audio.pause();
   audio.src = '';
   isSpeaking = false;
   if (window.speechSynthesis) window.speechSynthesis.cancel();
-
-  // Abort any existing recognition first
-  if (recognition) {
-    try { recognition.abort(); } catch(e) {}
-    recognition = null;
-  }
-
-  // Create fresh recognition object each time (most reliable approach)
-  recognition = new SR();
-  recognition.lang = 'ja-JP';
-  recognition.continuous = true;
-  recognition.interimResults = true;
-
-  var silenceTimer = null;
-  var finalTranscript = '';
-
-  recognition.onstart = function() {
-    isListening = true;
-    finalTranscript = '';
-    setVoiceState('listening');
-    document.getElementById('voiceTranscript').textContent = '';
-  };
-
-  recognition.onresult = function(e) {
-    var interim = '';
-    for (var i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        finalTranscript += e.results[i][0].transcript;
-      } else {
-        interim += e.results[i][0].transcript;
+  // If TTS still playing, wait for it to finish before opening mic
+  if (!ttsReady) {
+    var waitInterval = setInterval(function() {
+      if (ttsReady) {
+        clearInterval(waitInterval);
+        doStartListening();
       }
-    }
-    document.getElementById('voiceTranscript').textContent = finalTranscript + interim;
-    if (silenceTimer) clearTimeout(silenceTimer);
-    if (finalTranscript) {
-      silenceTimer = setTimeout(function() { recognition.stop(); }, 1800);
-    }
-  };
-
-  recognition.onend = function() {
-    isListening = false;
-    recognition = null;
-    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-    var text = finalTranscript.trim();
-    if (text) {
-      setVoiceState('thinking');
-      sendVoiceMessage(text);
-    } else {
-      setVoiceState('idle');
-    }
-  };
-
-  recognition.onerror = function(e) {
-    console.error('Speech error:', e.error);
-    isListening = false;
-    recognition = null;
-    setVoiceState('idle');
-    if (e.error === 'not-allowed') {
-      alert('請允許麥克風權限：\n點網址列左側鎖頭 → 麥克風 → 允許，然後重新整理頁面。');
-    }
-  };
-
-  function doStart() {
-    try {
-      recognition.start();
-    } catch(e) {
-      console.log('Recognition start error:', e.name);
-      recognition = null;
-      setVoiceState('idle');
-    }
+    }, 100);
+    return;
   }
-
-  // iOS needs a moment after audio stops before mic can open
-  if (isIOS) {
-    setTimeout(doStart, 300);
-  } else {
-    doStart();
-  }
+  doStartListening();
 }
 
 function stopListening() {
@@ -1259,46 +1263,74 @@ function extractJpOnly(text) {
 }
 
 function speakAndListen(text) {
-  // Use speechSynthesis for AI auto-speech (no audio session conflict with mic)
-  if (!window.speechSynthesis) { setVoiceState('idle'); return; }
   var jpText = extractJpOnly(text);
   if (!jpText) { setVoiceState('idle'); return; }
-  window.speechSynthesis.cancel();
-  var utt = new SpeechSynthesisUtterance(jpText);
-  utt.lang = 'ja-JP';
-  utt.rate = 0.85;
-  utt.pitch = 1.0;
-  var voices = window.speechSynthesis.getVoices();
-  var jpVoice = voices.find(function(v) { return v.name === 'Google 日本語'; })
-    || voices.find(function(v) { return v.name && v.name.indexOf('Kyoko') !== -1; })
-    || voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
-  if (jpVoice) utt.voice = jpVoice;
   isSpeaking = true;
+  ttsReady = false;
   setVoiceState('speaking');
-  utt.onend = function() {
-    isSpeaking = false;
-    setVoiceState('idle');
-  };
-  utt.onerror = function() {
-    isSpeaking = false;
-    setVoiceState('idle');
-  };
-  window.speechSynthesis.speak(utt);
+  var audio = getTTSAudio();
+  audio.pause();
+  audio.src = '';
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: jpText, voiceName: currentTTSVoice })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (!data.audioContent) { fallbackSpeakAndListen(jpText); return; }
+    audio.src = 'data:audio/mp3;base64,' + data.audioContent;
+    audio.onended = function() {
+      isSpeaking = false;
+      audio.src = '';
+      // Small gap to let iOS release audio session, then allow mic
+      setTimeout(function() { ttsReady = true; setVoiceState('idle'); }, 300);
+    };
+    audio.onerror = function() {
+      isSpeaking = false;
+      ttsReady = true;
+      setVoiceState('idle');
+      fallbackSpeakAndListen(jpText);
+    };
+    var p = audio.play();
+    if (p) p.catch(function() { fallbackSpeakAndListen(jpText); });
+  })
+  .catch(function() { fallbackSpeakAndListen(jpText); });
 }
 
-function speakJapanese(text) {
-  if (!autoTTS || !window.speechSynthesis) return;
-  var jpText = extractJpOnly(text);
-  if (!jpText) return;
+function fallbackSpeakAndListen(jpText) {
+  isSpeaking = true;
+  if (!window.speechSynthesis) { isSpeaking = false; ttsReady = true; setVoiceState('idle'); return; }
   window.speechSynthesis.cancel();
   var utt = new SpeechSynthesisUtterance(jpText);
   utt.lang = 'ja-JP'; utt.rate = 0.85;
   var voices = window.speechSynthesis.getVoices();
-  var jpVoice = voices.find(function(v) { return v.name === 'Google 日本語'; })
+  var v = voices.find(function(v) { return v.name === 'Google 日本語'; })
     || voices.find(function(v) { return v.name && v.name.indexOf('Kyoko') !== -1; })
     || voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
-  if (jpVoice) utt.voice = jpVoice;
+  if (v) utt.voice = v;
+  utt.onend = function() { isSpeaking = false; ttsReady = true; setVoiceState('idle'); };
+  utt.onerror = function() { isSpeaking = false; ttsReady = true; setVoiceState('idle'); };
   window.speechSynthesis.speak(utt);
+}
+
+function speakJapanese(text) {
+  if (!autoTTS) return;
+  var jpText = extractJpOnly(text);
+  if (!jpText) return;
+  var audio = getTTSAudio();
+  audio.pause(); audio.src = '';
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: jpText, voiceName: currentTTSVoice })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (!data.audioContent) return;
+    audio.src = 'data:audio/mp3;base64,' + data.audioContent;
+    audio.play().catch(function() {});
+  }).catch(function() {});
 }
 
 function speakJapanese_UNUSED(text) {
@@ -1400,6 +1432,7 @@ function setPreferredVoice(name) {
 // ── GOOGLE CLOUD TTS ──
 var currentTTSVoice = 'ja-JP-Neural2-B';
 var ttsAudio = null;
+var ttsReady = true; // false while TTS is playing
 var persistentAudio = null; // Single reusable Audio object for iOS compatibility
 
 function getAudioPlayer() {
