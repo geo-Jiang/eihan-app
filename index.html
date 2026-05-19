@@ -1138,22 +1138,25 @@ function createRecognition() {
   return r;
 }
 
+var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
 function startListening() {
   if (isListening) return;
-  // Stop ALL audio before starting microphone (critical for iOS)
+  // Stop ALL audio before starting microphone
   var audio = getAudioPlayer();
   if (!audio.paused) {
     audio.pause();
     audio.src = '';
   }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
-  // Small delay to let iOS release audio session before opening mic
-  setTimeout(function() {
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
-      return;
-    }
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
+    return;
+  }
+
+  function doStart() {
     recognition = createRecognition();
     if (!recognition) return;
     try {
@@ -1163,7 +1166,14 @@ function startListening() {
       recognition = null;
       setVoiceState('idle');
     }
-  }, 300);
+  }
+
+  // iOS needs extra time to release audio session before mic can open
+  if (isIOS) {
+    setTimeout(doStart, 300);
+  } else {
+    doStart();
+  }
 }
 
 function stopListening() {
