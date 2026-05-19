@@ -1089,9 +1089,12 @@ function setVoiceState(state) {
 
 function toggleVoice() {
   if (isSpeaking) {
-    window.speechSynthesis && window.speechSynthesis.cancel();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     var audio = getAudioPlayer();
-    audio.pause(); audio.src = '';
+    if (audio) {
+      audio.pause();
+      audio.src = '';
+    }
     isSpeaking = false;
     setVoiceState('idle');
     return;
@@ -1099,12 +1102,6 @@ function toggleVoice() {
   if (isListening) {
     stopListening();
     return;
-  }
-  // Safety reset - if state is stuck, force reset before starting
-  isListening = false;
-  if (recognition) {
-    try { recognition.stop(); } catch(e) {}
-    recognition = null;
   }
   startListening();
 }
