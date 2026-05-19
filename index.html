@@ -1259,41 +1259,46 @@ function extractJpOnly(text) {
 }
 
 function speakAndListen(text) {
-  speakAndListenWithCallback(text, null);
-}
-
-function speakAndListenWithCallback(text, onDone) {
+  // Use speechSynthesis for AI auto-speech (no audio session conflict with mic)
+  if (!window.speechSynthesis) { setVoiceState('idle'); return; }
   var jpText = extractJpOnly(text);
-  if (!jpText) {
-    setVoiceState('idle');
-    if (onDone) onDone();
-    return;
-  }
+  if (!jpText) { setVoiceState('idle'); return; }
+  window.speechSynthesis.cancel();
+  var utt = new SpeechSynthesisUtterance(jpText);
+  utt.lang = 'ja-JP';
+  utt.rate = 0.85;
+  utt.pitch = 1.0;
+  var voices = window.speechSynthesis.getVoices();
+  var jpVoice = voices.find(function(v) { return v.name === 'Google 日本語'; })
+    || voices.find(function(v) { return v.name && v.name.indexOf('Kyoko') !== -1; })
+    || voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
+  if (jpVoice) utt.voice = jpVoice;
   isSpeaking = true;
   setVoiceState('speaking');
-  var safetyTimer = setTimeout(function() {
+  utt.onend = function() {
     isSpeaking = false;
-    var audio = getTTSAudio();
-    audio.pause();
-    audio.src = '';
     setVoiceState('idle');
-    if (onDone) onDone();
-  }, 30000);
-  googleTTS(jpText, currentTTSVoice, function() {
-    clearTimeout(safetyTimer);
+  };
+  utt.onerror = function() {
     isSpeaking = false;
-    var audio = getTTSAudio();
-    audio.src = '';
     setVoiceState('idle');
-    if (onDone) onDone();
-  });
+  };
+  window.speechSynthesis.speak(utt);
 }
 
 function speakJapanese(text) {
-  if (!autoTTS) return;
+  if (!autoTTS || !window.speechSynthesis) return;
   var jpText = extractJpOnly(text);
   if (!jpText) return;
-  googleTTS(jpText);
+  window.speechSynthesis.cancel();
+  var utt = new SpeechSynthesisUtterance(jpText);
+  utt.lang = 'ja-JP'; utt.rate = 0.85;
+  var voices = window.speechSynthesis.getVoices();
+  var jpVoice = voices.find(function(v) { return v.name === 'Google 日本語'; })
+    || voices.find(function(v) { return v.name && v.name.indexOf('Kyoko') !== -1; })
+    || voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
+  if (jpVoice) utt.voice = jpVoice;
+  window.speechSynthesis.speak(utt);
 }
 
 function speakJapanese_UNUSED(text) {
