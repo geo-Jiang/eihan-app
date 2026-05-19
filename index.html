@@ -1140,21 +1140,30 @@ function createRecognition() {
 
 function startListening() {
   if (isListening) return;
-  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
-    return;
+  // Stop ALL audio before starting microphone (critical for iOS)
+  var audio = getAudioPlayer();
+  if (!audio.paused) {
+    audio.pause();
+    audio.src = '';
   }
-  recognition = createRecognition();
-  if (!recognition) return;
-  try {
-    recognition.start();
-  } catch(e) {
-    console.log('Recognition start error:', e.name);
-    recognition = null;
-    setVoiceState('idle');
-  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  // Small delay to let iOS release audio session before opening mic
+  setTimeout(function() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
+      return;
+    }
+    recognition = createRecognition();
+    if (!recognition) return;
+    try {
+      recognition.start();
+    } catch(e) {
+      console.log('Recognition start error:', e.name);
+      recognition = null;
+      setVoiceState('idle');
+    }
+  }, 300);
 }
 
 function stopListening() {
@@ -1218,14 +1227,20 @@ function speakAndListen(text) {
   if (!jpText) { setVoiceState('idle'); return; }
   isSpeaking = true;
   setVoiceState('speaking');
-  // Safety timeout - if TTS doesn't finish in 30s, reset state
   var safetyTimer = setTimeout(function() {
     isSpeaking = false;
     setVoiceState('idle');
+    // Force release audio on timeout
+    var audio = getAudioPlayer();
+    audio.pause();
+    audio.src = '';
   }, 30000);
   googleTTS(jpText, currentTTSVoice, function() {
     clearTimeout(safetyTimer);
     isSpeaking = false;
+    // Explicitly release audio session so iOS can open mic next
+    var audio = getAudioPlayer();
+    audio.src = '';
     setVoiceState('idle');
   });
 }
