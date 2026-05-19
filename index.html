@@ -634,16 +634,12 @@ html, body { height: 100%; font-family: 'Noto Sans TC', sans-serif; background: 
       <div id="ttsPanel" style="display:none;background:#EEF2F8;border-radius:10px;padding:12px 14px;margin-bottom:8px;">
         <div style="font-size:12px;font-weight:600;color:#2A4273;margin-bottom:8px;">Google Cloud AI 語音選擇</div>
         <select id="ttsVoiceSelector" style="width:100%;padding:7px;border-radius:6px;border:1px solid #ccc;font-size:12px;font-family:'Noto Sans TC',sans-serif;margin-bottom:8px;">
-          <optgroup label="── Neural2 最高品質 ──">
-            <option value="ja-JP-Neural2-B">Neural2-B（推薦・試聽確認）</option>
-            <option value="ja-JP-Neural2-C">Neural2-C（試聽確認）</option>
-          </optgroup>
-          <optgroup label="── WaveNet 高品質 ──">
-            <option value="ja-JP-Wavenet-A">Wavenet-A（試聽確認）</option>
-            <option value="ja-JP-Wavenet-B">Wavenet-B（試聽確認）</option>
-            <option value="ja-JP-Wavenet-C">Wavenet-C（試聽確認）</option>
-            <option value="ja-JP-Wavenet-D">Wavenet-D（試聽確認）</option>
-          </optgroup>
+          <option value="ja-JP-Neural2-C">Neural2-C（女聲・最自然・推薦）</option>
+          <option value="ja-JP-Neural2-B">Neural2-B（男聲・自然）</option>
+          <option value="ja-JP-Wavenet-A">Wavenet-A（女聲・清晰）</option>
+          <option value="ja-JP-Wavenet-B">Wavenet-B（男聲・清晰）</option>
+          <option value="ja-JP-Wavenet-C">Wavenet-C（男聲・低沉）</option>
+          <option value="ja-JP-Wavenet-D">Wavenet-D（女聲・活潑）</option>
         </select>
         <div style="display:flex;gap:8px;">
           <button onclick="testTTSVoice()" style="flex:1;padding:7px;background:#2A4273;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;">▶ 試聽</button>
@@ -825,7 +821,7 @@ async function startAISession() {
     removeTyping();
     const initAnalysis = await getAnalysis('', jpReply);
     addAIMessageWithAnalysis(jpReply, initAnalysis);
-    speakAndListen(jpReply);
+    if (voiceMode) speakAndListen(jpReply);
   } catch(e) {
     removeTyping();
     console.error('startAISession error:', e);
@@ -1088,52 +1084,56 @@ function setVoiceState(state) {
 }
 
 function toggleVoice() {
-  if (isSpeaking) {
-    window.speechSynthesis && window.speechSynthesis.cancel();
-    var audio = getAudioPlayer();
-    audio.pause(); audio.src = '';
-    isSpeaking = false;
-    setVoiceState('idle');
-    return;
-  }
-  if (isListening) {
-    stopListening();
-    return;
-  }
-  // Safety reset - if state is stuck, force reset before starting
-  isListening = false;
-  if (recognition) {
-    try { recognition.stop(); } catch(e) {}
-    recognition = null;
-  }
+  if (isSpeaking) { window.speechSynthesis && window.speechSynthesis.cancel(); isSpeaking=false; setVoiceState('idle'); return; }
+  if (isListening) { stopListening(); return; }
   startListening();
 }
 
-function createRecognition() {
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return null;
-  var r = new SR();
-  r.lang = 'ja-JP';
-  r.continuous = false;
-  r.interimResults = true;
-  r.maxAlternatives = 1;
-  r.onstart = function() {
+function initRecognitionOnce() {
+  if (recognition) return true;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
+    return false;
+  }
+  recognition = new SR();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.onstart = () => {
     isListening = true;
     setVoiceState('listening');
     document.getElementById('voiceTranscript').textContent = '';
   };
-  r.onresult = function(e) {
-    var interim = '', final = '';
-    for (var i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript;
-      else interim += e.results[i][0].transcript;
+  let silenceTimer = null;
+  let accumulatedText = '';
+  recognition.onresult = (e) => {
+    let interim='', final='';
+    for (let i=e.resultIndex; i<e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        accumulatedText += e.results[i][0].transcript;
+        final = accumulatedText;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
     }
-    document.getElementById('voiceTranscript').textContent = final || interim;
+    const display = accumulatedText + (interim ? ' ' + interim : '');
+    document.getElementById('voiceTranscript').textContent = display;
+    // Reset silence timer on each result - send after 2 seconds of silence
+    if (silenceTimer) clearTimeout(silenceTimer);
+    if (accumulatedText) {
+      silenceTimer = setTimeout(() => {
+        recognition.stop();
+      }, 2000);
+    }
   };
-  r.onend = function() {
+  recognition.onend = () => {
     isListening = false;
-    recognition = null;
-    var transcript = document.getElementById('voiceTranscript').textContent.trim();
+    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    const transcript = accumulatedText.trim() ||
+      document.getElementById('voiceTranscript').textContent.trim();
+    accumulatedText = '';
     if (transcript) {
       setVoiceState('thinking');
       sendVoiceMessage(transcript);
@@ -1141,54 +1141,33 @@ function createRecognition() {
       setVoiceState('idle');
     }
   };
-  r.onerror = function(e) {
+  recognition.onerror = (e) => {
     isListening = false;
-    recognition = null;
     setVoiceState('idle');
     if (e.error === 'not-allowed') {
       alert('請允許麥克風權限：\n點網址列左側鎖頭 → 麥克風 → 允許，然後重新整理頁面。');
-    } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
-      console.log('Speech error:', e.error);
+      recognition = null;
+    } else if (e.error === 'network') {
+      alert('語音辨識需要網路連線');
     }
   };
-  return r;
+  return true;
 }
 
-var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
 function startListening() {
-  if (isListening) return;
-  // Stop ALL audio before starting microphone
-  var audio = getAudioPlayer();
-  if (!audio.paused) {
-    audio.pause();
-    audio.src = '';
-  }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
-
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
-    return;
-  }
-
-  function doStart() {
-    recognition = createRecognition();
-    if (!recognition) return;
-    try {
-      recognition.start();
-    } catch(e) {
-      console.log('Recognition start error:', e.name);
-      recognition = null;
+  if (!initRecognitionOnce()) return;
+  // Reset accumulated text
+  try {
+    recognition.start();
+  } catch(e) {
+    if (e.name === 'InvalidStateError') {
+      // Already started or ended - just wait for onend
+      console.log('Recognition busy, waiting...');
+    } else {
+      console.log('Recognition error:', e.name);
       setVoiceState('idle');
     }
-  }
-
-  // iOS needs extra time to release audio session before mic can open
-  if (isIOS) {
-    setTimeout(doStart, 300);
-  } else {
-    doStart();
   }
 }
 
@@ -1219,12 +1198,10 @@ async function sendVoiceMessage(text) {
     const jpReply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!jpReply) throw new Error('Empty response');
     conversationHistory.push({role:'model', parts:[{text: jpReply}]});
+    // Get translation + grammar analysis separately
     const analysis = await getAnalysis(text, jpReply);
     addAIMessageWithAnalysis(jpReply, analysis);
-    // Wait for TTS to finish before releasing aiIsLoading
-    await new Promise(function(resolve) {
-      speakAndListenWithCallback(jpReply, resolve);
-    });
+    speakAndListen(jpReply);
   } catch(e) {
     setVoiceState('idle');
     addAIMessageWithAnalysis('すみません、もう一度お願いします。', {zh:'抱歉，請再說一次。', grammar:''});
@@ -1251,33 +1228,14 @@ function extractJpOnly(text) {
 }
 
 function speakAndListen(text) {
-  speakAndListenWithCallback(text, null);
-}
-
-function speakAndListenWithCallback(text, onDone) {
+  if (!window.speechSynthesis && !googleTTS) { setVoiceState('idle'); return; }
   var jpText = extractJpOnly(text);
-  if (!jpText) {
-    setVoiceState('idle');
-    if (onDone) onDone();
-    return;
-  }
+  if (!jpText) { setVoiceState('idle'); return; }
   isSpeaking = true;
   setVoiceState('speaking');
-  var safetyTimer = setTimeout(function() {
-    isSpeaking = false;
-    var audio = getAudioPlayer();
-    audio.pause();
-    audio.src = '';
-    setVoiceState('idle');
-    if (onDone) onDone();
-  }, 30000);
   googleTTS(jpText, currentTTSVoice, function() {
-    clearTimeout(safetyTimer);
     isSpeaking = false;
-    var audio = getAudioPlayer();
-    audio.src = '';
     setVoiceState('idle');
-    if (onDone) onDone();
   });
 }
 
@@ -1325,13 +1283,7 @@ function speakJapanese_UNUSED(text) {
 }
 
 function speakText(text, btnEl) {
-  var audio = getAudioPlayer();
-  if (!audio.paused) {
-    audio.pause();
-    audio.src = '';
-    document.querySelectorAll('.tts-btn').forEach(function(b) { b.classList.remove('speaking'); });
-    return;
-  }
+  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; if (btnEl) btnEl.classList.remove('speaking'); return; }
   var jpText = extractJpOnly(text);
   if (!jpText) return;
   if (btnEl) btnEl.classList.add('speaking');
@@ -1385,17 +1337,8 @@ function setPreferredVoice(name) {
 }
 
 // ── GOOGLE CLOUD TTS ──
-var currentTTSVoice = 'ja-JP-Neural2-B';
+var currentTTSVoice = 'ja-JP-Neural2-C';
 var ttsAudio = null;
-var persistentAudio = null; // Single reusable Audio object for iOS compatibility
-
-function getAudioPlayer() {
-  if (!persistentAudio) {
-    persistentAudio = new Audio();
-    persistentAudio.preload = 'auto';
-  }
-  return persistentAudio;
-}
 
 function showTTSPanel() {
   var panel = document.getElementById('ttsPanel');
@@ -1419,11 +1362,7 @@ function saveTTSVoice() {
 }
 
 function googleTTS(text, voiceName, callback) {
-  // Stop any current audio
-  var audio = getAudioPlayer();
-  audio.pause();
-  audio.src = '';
-
+  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
   fetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1432,51 +1371,27 @@ function googleTTS(text, voiceName, callback) {
   .then(function(res) { return res.json(); })
   .then(function(data) {
     if (data.audioContent) {
-      audio.onended = function() {
-        if (callback) callback(true);
-      };
-      audio.onerror = function(e) {
-        console.error('Audio error:', e);
-        fallbackTTS(text, callback);
-      };
-      // Set src and play using the SAME audio object (iOS allows this)
-      audio.src = 'data:audio/mp3;base64,' + data.audioContent;
-      var playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(function(e) {
-          console.warn('Play blocked:', e.name, '- using fallback TTS');
-          fallbackTTS(text, callback);
-        });
-      }
+      ttsAudio = new Audio('data:audio/mp3;base64,' + data.audioContent);
+      ttsAudio.onended = function() { ttsAudio = null; if (callback) callback(true); };
+      ttsAudio.play();
     } else {
       console.error('TTS error:', data.error);
-      fallbackTTS(text, callback);
+      if (callback) callback(false);
+      fallbackTTS(text);
     }
   })
   .catch(function(e) {
     console.error('TTS fetch error:', e);
-    fallbackTTS(text, callback);
+    if (callback) callback(false);
+    fallbackTTS(text);
   });
 }
 
-function fallbackTTS(text, callback) {
-  if (!window.speechSynthesis) {
-    if (callback) callback(false);
-    return;
-  }
-  window.speechSynthesis.cancel();
+function fallbackTTS(text) {
+  if (!window.speechSynthesis) return;
   var utt = new SpeechSynthesisUtterance(text);
   utt.lang = 'ja-JP';
   utt.rate = 0.82;
-  // Pick best available Japanese voice
-  var voices = window.speechSynthesis.getVoices();
-  var jpVoice = voices.find(function(v) { return v.name === 'Google 日本語'; })
-    || voices.find(function(v) { return v.name.indexOf('Kyoko') !== -1; })
-    || voices.find(function(v) { return v.lang === 'ja-JP'; })
-    || voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
-  if (jpVoice) utt.voice = jpVoice;
-  utt.onend = function() { if (callback) callback(true); };
-  utt.onerror = function() { if (callback) callback(false); };
   window.speechSynthesis.speak(utt);
 }
 
