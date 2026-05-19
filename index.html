@@ -1218,7 +1218,13 @@ function speakAndListen(text) {
   if (!jpText) { setVoiceState('idle'); return; }
   isSpeaking = true;
   setVoiceState('speaking');
+  // Safety timeout - if TTS doesn't finish in 30s, reset state
+  var safetyTimer = setTimeout(function() {
+    isSpeaking = false;
+    setVoiceState('idle');
+  }, 30000);
   googleTTS(jpText, currentTTSVoice, function() {
+    clearTimeout(safetyTimer);
     isSpeaking = false;
     setVoiceState('idle');
   });
@@ -1357,26 +1363,56 @@ function googleTTS(text, voiceName, callback) {
   .then(function(data) {
     if (data.audioContent) {
       ttsAudio = new Audio('data:audio/mp3;base64,' + data.audioContent);
-      ttsAudio.onended = function() { ttsAudio = null; if (callback) callback(true); };
-      ttsAudio.play();
+      ttsAudio.onended = function() {
+        ttsAudio = null;
+        if (callback) callback(true);
+      };
+      ttsAudio.onerror = function(e) {
+        console.error('Audio play error:', e);
+        ttsAudio = null;
+        // iOS blocks autoplay - fall back to browser TTS which works on iOS
+        fallbackTTS(text);
+        if (callback) callback(false);
+      };
+      // play() returns a Promise - handle iOS autoplay block
+      var playPromise = ttsAudio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(function(e) {
+          console.warn('Autoplay blocked:', e.name);
+          ttsAudio = null;
+          // Fall back to browser TTS on iOS
+          fallbackTTS(text, callback);
+        });
+      }
     } else {
       console.error('TTS error:', data.error);
-      if (callback) callback(false);
-      fallbackTTS(text);
+      fallbackTTS(text, callback);
     }
   })
   .catch(function(e) {
     console.error('TTS fetch error:', e);
-    if (callback) callback(false);
-    fallbackTTS(text);
+    fallbackTTS(text, callback);
   });
 }
 
-function fallbackTTS(text) {
-  if (!window.speechSynthesis) return;
+function fallbackTTS(text, callback) {
+  if (!window.speechSynthesis) {
+    if (callback) callback(false);
+    return;
+  }
+  window.speechSynthesis.cancel();
   var utt = new SpeechSynthesisUtterance(text);
   utt.lang = 'ja-JP';
   utt.rate = 0.82;
+  // Pick best available Japanese voice
+  var voices = window.speechSynthesis.getVoices();
+  var jpVoice = voices.find(function(v) { return v.name === 'Google 日本語'; })
+    || voices.find(function(v) { return v.name.indexOf('Kyoko') !== -1; })
+    || voices.find(function(v) { return v.lang === 'ja-JP'; })
+    || voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
+  if (jpVoice) utt.voice = jpVoice;
+  utt.onend = function() { if (callback) callback(true); };
+  utt.onerror = function() { if (callback) callback(false); };
   window.speechSynthesis.speak(utt);
 }
 
