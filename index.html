@@ -1173,7 +1173,12 @@ function initRecognitionOnce() {
   return true;
 }
 
-function doStartListening() {
+function startListening() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  var audio = getTTSAudio();
+  audio.pause();
+  audio.src = '';
+  isSpeaking = false;
   if (!initRecognitionOnce()) return;
   try {
     recognition.start();
@@ -1185,26 +1190,6 @@ function doStartListening() {
       setVoiceState('idle');
     }
   }
-}
-
-function startListening() {
-  // Stop all TTS audio first
-  var audio = getTTSAudio();
-  audio.pause();
-  audio.src = '';
-  isSpeaking = false;
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-  // If TTS still playing, wait for it to finish before opening mic
-  if (!ttsReady) {
-    var waitInterval = setInterval(function() {
-      if (ttsReady) {
-        clearInterval(waitInterval);
-        doStartListening();
-      }
-    }, 100);
-    return;
-  }
-  doStartListening();
 }
 
 function stopListening() {
@@ -1265,37 +1250,13 @@ function extractJpOnly(text) {
 function speakAndListen(text) {
   var jpText = extractJpOnly(text);
   if (!jpText) { setVoiceState('idle'); return; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   isSpeaking = true;
-  ttsReady = false;
   setVoiceState('speaking');
-  var audio = getTTSAudio();
-  audio.pause();
-  audio.src = '';
-  fetch('/api/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: jpText, voiceName: currentTTSVoice })
-  })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (!data.audioContent) { fallbackSpeakAndListen(jpText); return; }
-    audio.src = 'data:audio/mp3;base64,' + data.audioContent;
-    audio.onended = function() {
-      isSpeaking = false;
-      audio.src = '';
-      // Small gap to let iOS release audio session, then allow mic
-      setTimeout(function() { ttsReady = true; setVoiceState('idle'); }, 300);
-    };
-    audio.onerror = function() {
-      isSpeaking = false;
-      ttsReady = true;
-      setVoiceState('idle');
-      fallbackSpeakAndListen(jpText);
-    };
-    var p = audio.play();
-    if (p) p.catch(function() { fallbackSpeakAndListen(jpText); });
-  })
-  .catch(function() { fallbackSpeakAndListen(jpText); });
+  googleTTS(jpText, currentTTSVoice, function(success) {
+    isSpeaking = false;
+    setVoiceState('idle');
+  });
 }
 
 function fallbackSpeakAndListen(jpText) {
@@ -1318,19 +1279,8 @@ function speakJapanese(text) {
   if (!autoTTS) return;
   var jpText = extractJpOnly(text);
   if (!jpText) return;
-  var audio = getTTSAudio();
-  audio.pause(); audio.src = '';
-  fetch('/api/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: jpText, voiceName: currentTTSVoice })
-  })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (!data.audioContent) return;
-    audio.src = 'data:audio/mp3;base64,' + data.audioContent;
-    audio.play().catch(function() {});
-  }).catch(function() {});
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  googleTTS(jpText, currentTTSVoice, null);
 }
 
 function speakJapanese_UNUSED(text) {
@@ -1370,6 +1320,7 @@ function speakJapanese_UNUSED(text) {
 }
 
 function speakText(text, btnEl) {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   var audio = getTTSAudio();
   if (!audio.paused) {
     audio.pause();
@@ -1465,10 +1416,10 @@ function getTTSAudio() {
 }
 
 function googleTTS(text, voiceName, callback) {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   var audio = getTTSAudio();
   audio.pause();
   audio.src = '';
-
   fetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
