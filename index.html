@@ -629,23 +629,6 @@ html, body { height: 100%; font-family: 'Noto Sans TC', sans-serif; background: 
         <button class="tool-btn active" id="btnVoiceMode" onclick="setVoiceMode(true)">🎤 語音模式</button>
         <button class="tool-btn" onclick="requestHint()">💡 提示</button>
         <button class="tool-btn" onclick="requestFeedback()">📝 語法說明</button>
-        <button class="tool-btn" onclick="showTTSPanel()" title="選擇AI語音">🔊 語音選擇</button>
-      </div>
-      <div id="ttsPanel" style="display:none;background:#EEF2F8;border-radius:10px;padding:12px 14px;margin-bottom:8px;">
-        <div style="font-size:12px;font-weight:600;color:#2A4273;margin-bottom:8px;">Google Cloud AI 語音選擇</div>
-        <select id="ttsVoiceSelector" style="width:100%;padding:7px;border-radius:6px;border:1px solid #ccc;font-size:12px;font-family:'Noto Sans TC',sans-serif;margin-bottom:8px;">
-          <option value="ja-JP-Neural2-C">Neural2-C（女聲・最自然・推薦）</option>
-          <option value="ja-JP-Neural2-B">Neural2-B（男聲・自然）</option>
-          <option value="ja-JP-Wavenet-A">Wavenet-A（女聲・清晰）</option>
-          <option value="ja-JP-Wavenet-B">Wavenet-B（男聲・清晰）</option>
-          <option value="ja-JP-Wavenet-C">Wavenet-C（男聲・低沉）</option>
-          <option value="ja-JP-Wavenet-D">Wavenet-D（女聲・活潑）</option>
-        </select>
-        <div style="display:flex;gap:8px;">
-          <button onclick="testTTSVoice()" style="flex:1;padding:7px;background:#2A4273;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;">▶ 試聽</button>
-          <button onclick="saveTTSVoice()" style="flex:1;padding:7px;background:#C82D28;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;">✓ 選用此語音</button>
-        </div>
-        <div id="ttsPanelStatus" style="font-size:11px;color:#6E788C;margin-top:6px;"></div>
       </div>
 
       <!-- VOICE MODE UI -->
@@ -1228,68 +1211,56 @@ function extractJpOnly(text) {
 }
 
 function speakAndListen(text) {
-  if (!window.speechSynthesis && !googleTTS) { setVoiceState('idle'); return; }
-  var jpText = extractJpOnly(text);
+  if (!window.speechSynthesis) { setVoiceState('idle'); return; }
+  const jpText = extractJpOnly(text);
+  console.log('[TTS 朗讀內容]', jpText);
   if (!jpText) { setVoiceState('idle'); return; }
+  const utt = new SpeechSynthesisUtterance(jpText);
+  utt.lang = 'ja-JP'; utt.rate = 0.85; utt.pitch = 1.0;
+  const voices = window.speechSynthesis.getVoices();
+  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  if (jpVoice) utt.voice = jpVoice;
   isSpeaking = true;
   setVoiceState('speaking');
-  googleTTS(jpText, currentTTSVoice, function() {
+  utt.onend = () => {
     isSpeaking = false;
     setVoiceState('idle');
-  });
+    // Don't auto-restart - let user tap the circle to speak
+    // This avoids repeated microphone permission popups on local files
+  };
+  utt.onerror = () => { isSpeaking=false; setVoiceState('idle'); };
+  window.speechSynthesis.speak(utt);
 }
 
 function speakJapanese(text) {
-  if (!autoTTS) return;
-  var jpText = extractJpOnly(text);
-  if (!jpText) return;
-  googleTTS(jpText);
-}
-
-function speakJapanese_UNUSED(text) {
   if (!window.speechSynthesis || !autoTTS) return;
   window.speechSynthesis.cancel();
   const jpText = extractJpOnly(text);
   if (!jpText) return;
   const utt = new SpeechSynthesisUtterance(jpText);
-  utt.lang = 'ja-JP'; utt.rate = 0.82; utt.pitch = 1.0;
+  utt.lang = 'ja-JP'; utt.rate = 0.85; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
-  const jpVoice = (function() {
-    // Use manually selected voice if set
-    if (window._preferredVoiceName) {
-      var pv = voices.find(function(v) { return v.name === window._preferredVoiceName; });
-      if (pv) return pv;
-    }
-    // Priority 1: Google 日本語 (Chrome)
-    var v = voices.find(function(v) { return v.name === 'Google 日本語'; });
-    if (v) return v;
-    // Priority 2: Apple Kyoko - Tokyo accent (Mac/iPhone)
-    v = voices.find(function(v) { return v.name.indexOf('Kyoko') !== -1; });
-    if (v) return v;
-    // Priority 3: Apple Otoya (Mac)
-    v = voices.find(function(v) { return v.name.indexOf('Otoya') !== -1; });
-    if (v) return v;
-    // Priority 4: Microsoft Nanami (Windows)
-    v = voices.find(function(v) { return v.name.indexOf('Nanami') !== -1; });
-    if (v) return v;
-    // Priority 5: Any ja-JP voice
-    v = voices.find(function(v) { return v.lang === 'ja-JP'; });
-    if (v) return v;
-    // Priority 6: Any Japanese voice
-    return voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
-  })();
+  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
   if (jpVoice) utt.voice = jpVoice;
   window.speechSynthesis.speak(utt);
 }
 
 function speakText(text, btnEl) {
-  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; if (btnEl) btnEl.classList.remove('speaking'); return; }
-  var jpText = extractJpOnly(text);
+  if (!window.speechSynthesis) { alert('您的瀏覽器不支援語音朗讀'); return; }
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    document.querySelectorAll('.tts-btn').forEach(b=>b.classList.remove('speaking'));
+    return;
+  }
+  const jpText = extractJpOnly(text);
   if (!jpText) return;
-  if (btnEl) btnEl.classList.add('speaking');
-  googleTTS(jpText, currentTTSVoice, function() {
-    if (btnEl) btnEl.classList.remove('speaking');
-  });
+  const utt = new SpeechSynthesisUtterance(jpText);
+  utt.lang = 'ja-JP'; utt.rate = 0.85;
+  const voices = window.speechSynthesis.getVoices();
+  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  if (jpVoice) utt.voice = jpVoice;
+  if (btnEl) { btnEl.classList.add('speaking'); utt.onend=()=>btnEl.classList.remove('speaking'); utt.onerror=()=>btnEl.classList.remove('speaking'); }
+  window.speechSynthesis.speak(utt);
 }
 
 function toggleAutoTTS() {
@@ -1297,102 +1268,6 @@ function toggleAutoTTS() {
   const btn = document.getElementById('btnAutoTTS');
   if (btn) btn.textContent = autoTTS ? '🔊 自動朗讀：開' : '🔇 自動朗讀：關';
   if (!autoTTS && window.speechSynthesis) window.speechSynthesis.cancel();
-}
-
-function showVoiceList() {
-  var panel = document.getElementById('voiceListPanel');
-  var sel = document.getElementById('voiceSelector');
-  if (panel.style.display === 'none') {
-    panel.style.display = 'block';
-    var voices = window.speechSynthesis.getVoices();
-    var jpVoices = voices.filter(function(v) { return v.lang && v.lang.startsWith('ja'); });
-    sel.innerHTML = '';
-    if (jpVoices.length === 0) {
-      sel.innerHTML = '<option>找不到日文語音，請確認裝置設定</option>';
-    } else {
-      jpVoices.forEach(function(v, i) {
-        var opt = document.createElement('option');
-        opt.value = v.name;
-        opt.textContent = v.name + ' (' + v.lang + ')';
-        if (v.name === window._preferredVoiceName) opt.selected = true;
-        sel.appendChild(opt);
-      });
-    }
-  } else {
-    panel.style.display = 'none';
-  }
-}
-
-function setPreferredVoice(name) {
-  window._preferredVoiceName = name;
-  var voices = window.speechSynthesis.getVoices();
-  var v = voices.find(function(v) { return v.name === name; });
-  if (v) {
-    var test = new SpeechSynthesisUtterance('こんにちは、よろしくお願いします。');
-    test.lang = 'ja-JP';
-    test.voice = v;
-    test.rate = 0.82;
-    window.speechSynthesis.speak(test);
-  }
-}
-
-// ── GOOGLE CLOUD TTS ──
-var currentTTSVoice = 'ja-JP-Neural2-C';
-var ttsAudio = null;
-
-function showTTSPanel() {
-  var panel = document.getElementById('ttsPanel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  document.getElementById('ttsVoiceSelector').value = currentTTSVoice;
-}
-
-function testTTSVoice() {
-  var voice = document.getElementById('ttsVoiceSelector').value;
-  var status = document.getElementById('ttsPanelStatus');
-  status.textContent = '載入中...';
-  googleTTS('こんにちは。よろしくお願いします。', voice, function(ok) {
-    status.textContent = ok ? '試聽完成' : '試聽失敗，請確認 TTS API Key';
-  });
-}
-
-function saveTTSVoice() {
-  currentTTSVoice = document.getElementById('ttsVoiceSelector').value;
-  document.getElementById('ttsPanelStatus').textContent = '已選用：' + currentTTSVoice;
-  setTimeout(function() { document.getElementById('ttsPanel').style.display = 'none'; }, 1200);
-}
-
-function googleTTS(text, voiceName, callback) {
-  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
-  fetch('/api/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: text, voiceName: voiceName || currentTTSVoice })
-  })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (data.audioContent) {
-      ttsAudio = new Audio('data:audio/mp3;base64,' + data.audioContent);
-      ttsAudio.onended = function() { ttsAudio = null; if (callback) callback(true); };
-      ttsAudio.play();
-    } else {
-      console.error('TTS error:', data.error);
-      if (callback) callback(false);
-      fallbackTTS(text);
-    }
-  })
-  .catch(function(e) {
-    console.error('TTS fetch error:', e);
-    if (callback) callback(false);
-    fallbackTTS(text);
-  });
-}
-
-function fallbackTTS(text) {
-  if (!window.speechSynthesis) return;
-  var utt = new SpeechSynthesisUtterance(text);
-  utt.lang = 'ja-JP';
-  utt.rate = 0.82;
-  window.speechSynthesis.speak(utt);
 }
 
 // Preload voices
