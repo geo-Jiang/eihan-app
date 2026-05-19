@@ -629,6 +629,27 @@ html, body { height: 100%; font-family: 'Noto Sans TC', sans-serif; background: 
         <button class="tool-btn active" id="btnVoiceMode" onclick="setVoiceMode(true)">🎤 語音模式</button>
         <button class="tool-btn" onclick="requestHint()">💡 提示</button>
         <button class="tool-btn" onclick="requestFeedback()">📝 語法說明</button>
+        <button class="tool-btn" onclick="showTTSPanel()" title="選擇AI語音">🔊 語音選擇</button>
+      </div>
+      <div id="ttsPanel" style="display:none;background:#EEF2F8;border-radius:10px;padding:12px 14px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:600;color:#2A4273;margin-bottom:8px;">Google Cloud AI 語音選擇</div>
+        <select id="ttsVoiceSelector" style="width:100%;padding:7px;border-radius:6px;border:1px solid #ccc;font-size:12px;font-family:'Noto Sans TC',sans-serif;margin-bottom:8px;">
+          <optgroup label="── Neural2 最高品質 ──">
+            <option value="ja-JP-Neural2-B">Neural2-B（推薦・試聽確認）</option>
+            <option value="ja-JP-Neural2-C">Neural2-C（試聽確認）</option>
+          </optgroup>
+          <optgroup label="── WaveNet 高品質 ──">
+            <option value="ja-JP-Wavenet-A">Wavenet-A（試聽確認）</option>
+            <option value="ja-JP-Wavenet-B">Wavenet-B（試聽確認）</option>
+            <option value="ja-JP-Wavenet-C">Wavenet-C（試聽確認）</option>
+            <option value="ja-JP-Wavenet-D">Wavenet-D（試聽確認）</option>
+          </optgroup>
+        </select>
+        <div style="display:flex;gap:8px;">
+          <button onclick="testTTSVoice()" style="flex:1;padding:7px;background:#2A4273;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;">▶ 試聽</button>
+          <button onclick="saveTTSVoice()" style="flex:1;padding:7px;background:#C82D28;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;">✓ 選用此語音</button>
+        </div>
+        <div id="ttsPanelStatus" style="font-size:11px;color:#6E788C;margin-top:6px;"></div>
       </div>
 
       <!-- VOICE MODE UI -->
@@ -804,7 +825,7 @@ async function startAISession() {
     removeTyping();
     const initAnalysis = await getAnalysis('', jpReply);
     addAIMessageWithAnalysis(jpReply, initAnalysis);
-    if (voiceMode) speakAndListen(jpReply);
+    speakAndListen(jpReply);
   } catch(e) {
     removeTyping();
     console.error('startAISession error:', e);
@@ -1067,10 +1088,28 @@ function setVoiceState(state) {
 }
 
 function toggleVoice() {
-  if (isSpeaking) { window.speechSynthesis && window.speechSynthesis.cancel(); isSpeaking=false; setVoiceState('idle'); return; }
-  if (isListening) { stopListening(); return; }
+  if (isSpeaking) {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    var audio = getAudioPlayer();
+    audio.pause(); audio.src = '';
+    isSpeaking = false;
+    setVoiceState('idle');
+    return;
+  }
+  if (isListening) {
+    stopListening();
+    return;
+  }
+  // Safety reset - if state is stuck, force reset before starting
+  isListening = false;
+  if (recognition) {
+    try { recognition.stop(); } catch(e) {}
+    recognition = null;
+  }
   startListening();
 }
+
+var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
 function initRecognitionOnce() {
   if (recognition) return true;
@@ -1092,8 +1131,8 @@ function initRecognitionOnce() {
   let silenceTimer = null;
   let accumulatedText = '';
   recognition.onresult = (e) => {
-    let interim='', final='';
-    for (let i=e.resultIndex; i<e.results.length; i++) {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
         accumulatedText += e.results[i][0].transcript;
         final = accumulatedText;
@@ -1103,12 +1142,9 @@ function initRecognitionOnce() {
     }
     const display = accumulatedText + (interim ? ' ' + interim : '');
     document.getElementById('voiceTranscript').textContent = display;
-    // Reset silence timer on each result - send after 2 seconds of silence
     if (silenceTimer) clearTimeout(silenceTimer);
     if (accumulatedText) {
-      silenceTimer = setTimeout(() => {
-        recognition.stop();
-      }, 2000);
+      silenceTimer = setTimeout(() => { recognition.stop(); }, 2000);
     }
   };
   recognition.onend = () => {
@@ -1138,19 +1174,27 @@ function initRecognitionOnce() {
 }
 
 function startListening() {
+  // Stop audio before mic (important for iOS)
+  var audio = getAudioPlayer();
+  if (!audio.paused) { audio.pause(); audio.src = ''; }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   if (!initRecognitionOnce()) return;
-  // Reset accumulated text
-  try {
-    recognition.start();
-  } catch(e) {
-    if (e.name === 'InvalidStateError') {
-      // Already started or ended - just wait for onend
-      console.log('Recognition busy, waiting...');
-    } else {
-      console.log('Recognition error:', e.name);
-      setVoiceState('idle');
+  function doStart() {
+    try {
+      recognition.start();
+    } catch(e) {
+      if (e.name === 'InvalidStateError') {
+        console.log('Recognition busy, waiting...');
+      } else {
+        console.log('Recognition error:', e.name);
+        setVoiceState('idle');
+      }
     }
+  }
+  if (isIOS) {
+    setTimeout(doStart, 200);
+  } else {
+    doStart();
   }
 }
 
@@ -1181,7 +1225,6 @@ async function sendVoiceMessage(text) {
     const jpReply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!jpReply) throw new Error('Empty response');
     conversationHistory.push({role:'model', parts:[{text: jpReply}]});
-    // Get translation + grammar analysis separately
     const analysis = await getAnalysis(text, jpReply);
     addAIMessageWithAnalysis(jpReply, analysis);
     speakAndListen(jpReply);
@@ -1211,56 +1254,93 @@ function extractJpOnly(text) {
 }
 
 function speakAndListen(text) {
-  if (!window.speechSynthesis) { setVoiceState('idle'); return; }
-  const jpText = extractJpOnly(text);
-  console.log('[TTS 朗讀內容]', jpText);
-  if (!jpText) { setVoiceState('idle'); return; }
-  const utt = new SpeechSynthesisUtterance(jpText);
-  utt.lang = 'ja-JP'; utt.rate = 0.85; utt.pitch = 1.0;
-  const voices = window.speechSynthesis.getVoices();
-  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
-  if (jpVoice) utt.voice = jpVoice;
+  speakAndListenWithCallback(text, null);
+}
+
+function speakAndListenWithCallback(text, onDone) {
+  var jpText = extractJpOnly(text);
+  if (!jpText) {
+    setVoiceState('idle');
+    if (onDone) onDone();
+    return;
+  }
   isSpeaking = true;
   setVoiceState('speaking');
-  utt.onend = () => {
+  var safetyTimer = setTimeout(function() {
     isSpeaking = false;
+    var audio = getAudioPlayer();
+    audio.pause();
+    audio.src = '';
     setVoiceState('idle');
-    // Don't auto-restart - let user tap the circle to speak
-    // This avoids repeated microphone permission popups on local files
-  };
-  utt.onerror = () => { isSpeaking=false; setVoiceState('idle'); };
-  window.speechSynthesis.speak(utt);
+    if (onDone) onDone();
+  }, 30000);
+  googleTTS(jpText, currentTTSVoice, function() {
+    clearTimeout(safetyTimer);
+    isSpeaking = false;
+    var audio = getAudioPlayer();
+    audio.src = '';
+    setVoiceState('idle');
+    if (onDone) onDone();
+  });
 }
 
 function speakJapanese(text) {
+  if (!autoTTS) return;
+  var jpText = extractJpOnly(text);
+  if (!jpText) return;
+  googleTTS(jpText);
+}
+
+function speakJapanese_UNUSED(text) {
   if (!window.speechSynthesis || !autoTTS) return;
   window.speechSynthesis.cancel();
   const jpText = extractJpOnly(text);
   if (!jpText) return;
   const utt = new SpeechSynthesisUtterance(jpText);
-  utt.lang = 'ja-JP'; utt.rate = 0.85; utt.pitch = 1.0;
+  utt.lang = 'ja-JP'; utt.rate = 0.82; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
-  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+  const jpVoice = (function() {
+    // Use manually selected voice if set
+    if (window._preferredVoiceName) {
+      var pv = voices.find(function(v) { return v.name === window._preferredVoiceName; });
+      if (pv) return pv;
+    }
+    // Priority 1: Google 日本語 (Chrome)
+    var v = voices.find(function(v) { return v.name === 'Google 日本語'; });
+    if (v) return v;
+    // Priority 2: Apple Kyoko - Tokyo accent (Mac/iPhone)
+    v = voices.find(function(v) { return v.name.indexOf('Kyoko') !== -1; });
+    if (v) return v;
+    // Priority 3: Apple Otoya (Mac)
+    v = voices.find(function(v) { return v.name.indexOf('Otoya') !== -1; });
+    if (v) return v;
+    // Priority 4: Microsoft Nanami (Windows)
+    v = voices.find(function(v) { return v.name.indexOf('Nanami') !== -1; });
+    if (v) return v;
+    // Priority 5: Any ja-JP voice
+    v = voices.find(function(v) { return v.lang === 'ja-JP'; });
+    if (v) return v;
+    // Priority 6: Any Japanese voice
+    return voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
+  })();
   if (jpVoice) utt.voice = jpVoice;
   window.speechSynthesis.speak(utt);
 }
 
 function speakText(text, btnEl) {
-  if (!window.speechSynthesis) { alert('您的瀏覽器不支援語音朗讀'); return; }
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-    document.querySelectorAll('.tts-btn').forEach(b=>b.classList.remove('speaking'));
+  var audio = getAudioPlayer();
+  if (!audio.paused) {
+    audio.pause();
+    audio.src = '';
+    document.querySelectorAll('.tts-btn').forEach(function(b) { b.classList.remove('speaking'); });
     return;
   }
-  const jpText = extractJpOnly(text);
+  var jpText = extractJpOnly(text);
   if (!jpText) return;
-  const utt = new SpeechSynthesisUtterance(jpText);
-  utt.lang = 'ja-JP'; utt.rate = 0.85;
-  const voices = window.speechSynthesis.getVoices();
-  const jpVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
-  if (jpVoice) utt.voice = jpVoice;
-  if (btnEl) { btnEl.classList.add('speaking'); utt.onend=()=>btnEl.classList.remove('speaking'); utt.onerror=()=>btnEl.classList.remove('speaking'); }
-  window.speechSynthesis.speak(utt);
+  if (btnEl) btnEl.classList.add('speaking');
+  googleTTS(jpText, currentTTSVoice, function() {
+    if (btnEl) btnEl.classList.remove('speaking');
+  });
 }
 
 function toggleAutoTTS() {
@@ -1268,6 +1348,139 @@ function toggleAutoTTS() {
   const btn = document.getElementById('btnAutoTTS');
   if (btn) btn.textContent = autoTTS ? '🔊 自動朗讀：開' : '🔇 自動朗讀：關';
   if (!autoTTS && window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function showVoiceList() {
+  var panel = document.getElementById('voiceListPanel');
+  var sel = document.getElementById('voiceSelector');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    var voices = window.speechSynthesis.getVoices();
+    var jpVoices = voices.filter(function(v) { return v.lang && v.lang.startsWith('ja'); });
+    sel.innerHTML = '';
+    if (jpVoices.length === 0) {
+      sel.innerHTML = '<option>找不到日文語音，請確認裝置設定</option>';
+    } else {
+      jpVoices.forEach(function(v, i) {
+        var opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = v.name + ' (' + v.lang + ')';
+        if (v.name === window._preferredVoiceName) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function setPreferredVoice(name) {
+  window._preferredVoiceName = name;
+  var voices = window.speechSynthesis.getVoices();
+  var v = voices.find(function(v) { return v.name === name; });
+  if (v) {
+    var test = new SpeechSynthesisUtterance('こんにちは、よろしくお願いします。');
+    test.lang = 'ja-JP';
+    test.voice = v;
+    test.rate = 0.82;
+    window.speechSynthesis.speak(test);
+  }
+}
+
+// ── GOOGLE CLOUD TTS ──
+var currentTTSVoice = 'ja-JP-Neural2-B';
+var ttsAudio = null;
+var persistentAudio = null; // Single reusable Audio object for iOS compatibility
+
+function getAudioPlayer() {
+  if (!persistentAudio) {
+    persistentAudio = new Audio();
+    persistentAudio.preload = 'auto';
+  }
+  return persistentAudio;
+}
+
+function showTTSPanel() {
+  var panel = document.getElementById('ttsPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('ttsVoiceSelector').value = currentTTSVoice;
+}
+
+function testTTSVoice() {
+  var voice = document.getElementById('ttsVoiceSelector').value;
+  var status = document.getElementById('ttsPanelStatus');
+  status.textContent = '載入中...';
+  googleTTS('こんにちは。よろしくお願いします。', voice, function(ok) {
+    status.textContent = ok ? '試聽完成' : '試聽失敗，請確認 TTS API Key';
+  });
+}
+
+function saveTTSVoice() {
+  currentTTSVoice = document.getElementById('ttsVoiceSelector').value;
+  document.getElementById('ttsPanelStatus').textContent = '已選用：' + currentTTSVoice;
+  setTimeout(function() { document.getElementById('ttsPanel').style.display = 'none'; }, 1200);
+}
+
+function googleTTS(text, voiceName, callback) {
+  // Stop any current audio
+  var audio = getAudioPlayer();
+  audio.pause();
+  audio.src = '';
+
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text, voiceName: voiceName || currentTTSVoice })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.audioContent) {
+      audio.onended = function() {
+        if (callback) callback(true);
+      };
+      audio.onerror = function(e) {
+        console.error('Audio error:', e);
+        fallbackTTS(text, callback);
+      };
+      // Set src and play using the SAME audio object (iOS allows this)
+      audio.src = 'data:audio/mp3;base64,' + data.audioContent;
+      var playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(function(e) {
+          console.warn('Play blocked:', e.name, '- using fallback TTS');
+          fallbackTTS(text, callback);
+        });
+      }
+    } else {
+      console.error('TTS error:', data.error);
+      fallbackTTS(text, callback);
+    }
+  })
+  .catch(function(e) {
+    console.error('TTS fetch error:', e);
+    fallbackTTS(text, callback);
+  });
+}
+
+function fallbackTTS(text, callback) {
+  if (!window.speechSynthesis) {
+    if (callback) callback(false);
+    return;
+  }
+  window.speechSynthesis.cancel();
+  var utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'ja-JP';
+  utt.rate = 0.82;
+  // Pick best available Japanese voice
+  var voices = window.speechSynthesis.getVoices();
+  var jpVoice = voices.find(function(v) { return v.name === 'Google 日本語'; })
+    || voices.find(function(v) { return v.name.indexOf('Kyoko') !== -1; })
+    || voices.find(function(v) { return v.lang === 'ja-JP'; })
+    || voices.find(function(v) { return v.lang && v.lang.startsWith('ja'); });
+  if (jpVoice) utt.voice = jpVoice;
+  utt.onend = function() { if (callback) callback(true); };
+  utt.onerror = function() { if (callback) callback(false); };
+  window.speechSynthesis.speak(utt);
 }
 
 // Preload voices
