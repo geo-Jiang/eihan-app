@@ -1274,7 +1274,13 @@ function speakJapanese_UNUSED(text) {
 }
 
 function speakText(text, btnEl) {
-  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; if (btnEl) btnEl.classList.remove('speaking'); return; }
+  var audio = getAudioPlayer();
+  if (!audio.paused) {
+    audio.pause();
+    audio.src = '';
+    document.querySelectorAll('.tts-btn').forEach(function(b) { b.classList.remove('speaking'); });
+    return;
+  }
   var jpText = extractJpOnly(text);
   if (!jpText) return;
   if (btnEl) btnEl.classList.add('speaking');
@@ -1330,6 +1336,15 @@ function setPreferredVoice(name) {
 // ── GOOGLE CLOUD TTS ──
 var currentTTSVoice = 'ja-JP-Neural2-B';
 var ttsAudio = null;
+var persistentAudio = null; // Single reusable Audio object for iOS compatibility
+
+function getAudioPlayer() {
+  if (!persistentAudio) {
+    persistentAudio = new Audio();
+    persistentAudio.preload = 'auto';
+  }
+  return persistentAudio;
+}
 
 function showTTSPanel() {
   var panel = document.getElementById('ttsPanel');
@@ -1353,7 +1368,11 @@ function saveTTSVoice() {
 }
 
 function googleTTS(text, voiceName, callback) {
-  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
+  // Stop any current audio
+  var audio = getAudioPlayer();
+  audio.pause();
+  audio.src = '';
+
   fetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1362,25 +1381,19 @@ function googleTTS(text, voiceName, callback) {
   .then(function(res) { return res.json(); })
   .then(function(data) {
     if (data.audioContent) {
-      ttsAudio = new Audio('data:audio/mp3;base64,' + data.audioContent);
-      ttsAudio.onended = function() {
-        ttsAudio = null;
+      audio.onended = function() {
         if (callback) callback(true);
       };
-      ttsAudio.onerror = function(e) {
-        console.error('Audio play error:', e);
-        ttsAudio = null;
-        // iOS blocks autoplay - fall back to browser TTS which works on iOS
-        fallbackTTS(text);
-        if (callback) callback(false);
+      audio.onerror = function(e) {
+        console.error('Audio error:', e);
+        fallbackTTS(text, callback);
       };
-      // play() returns a Promise - handle iOS autoplay block
-      var playPromise = ttsAudio.play();
+      // Set src and play using the SAME audio object (iOS allows this)
+      audio.src = 'data:audio/mp3;base64,' + data.audioContent;
+      var playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(function(e) {
-          console.warn('Autoplay blocked:', e.name);
-          ttsAudio = null;
-          // Fall back to browser TTS on iOS
+          console.warn('Play blocked:', e.name, '- using fallback TTS');
           fallbackTTS(text, callback);
         });
       }
