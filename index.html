@@ -825,7 +825,7 @@ async function startAISession() {
     removeTyping();
     const initAnalysis = await getAnalysis('', jpReply);
     addAIMessageWithAnalysis(jpReply, initAnalysis);
-    if (voiceMode) speakAndListen(jpReply);
+    speakAndListen(jpReply);
   } catch(e) {
     removeTyping();
     console.error('startAISession error:', e);
@@ -1093,51 +1093,31 @@ function toggleVoice() {
   startListening();
 }
 
-function initRecognitionOnce() {
-  if (recognition) return true;
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
-    return false;
-  }
-  recognition = new SR();
-  recognition.lang = 'ja-JP';
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
-  recognition.onstart = () => {
+function createRecognition() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  var r = new SR();
+  r.lang = 'ja-JP';
+  r.continuous = false;
+  r.interimResults = true;
+  r.maxAlternatives = 1;
+  r.onstart = function() {
     isListening = true;
     setVoiceState('listening');
     document.getElementById('voiceTranscript').textContent = '';
   };
-  let silenceTimer = null;
-  let accumulatedText = '';
-  recognition.onresult = (e) => {
-    let interim='', final='';
-    for (let i=e.resultIndex; i<e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        accumulatedText += e.results[i][0].transcript;
-        final = accumulatedText;
-      } else {
-        interim += e.results[i][0].transcript;
-      }
+  r.onresult = function(e) {
+    var interim = '', final = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
     }
-    const display = accumulatedText + (interim ? ' ' + interim : '');
-    document.getElementById('voiceTranscript').textContent = display;
-    // Reset silence timer on each result - send after 2 seconds of silence
-    if (silenceTimer) clearTimeout(silenceTimer);
-    if (accumulatedText) {
-      silenceTimer = setTimeout(() => {
-        recognition.stop();
-      }, 2000);
-    }
+    document.getElementById('voiceTranscript').textContent = final || interim;
   };
-  recognition.onend = () => {
+  r.onend = function() {
     isListening = false;
-    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-    const transcript = accumulatedText.trim() ||
-      document.getElementById('voiceTranscript').textContent.trim();
-    accumulatedText = '';
+    recognition = null;
+    var transcript = document.getElementById('voiceTranscript').textContent.trim();
     if (transcript) {
       setVoiceState('thinking');
       sendVoiceMessage(transcript);
@@ -1145,33 +1125,35 @@ function initRecognitionOnce() {
       setVoiceState('idle');
     }
   };
-  recognition.onerror = (e) => {
+  r.onerror = function(e) {
     isListening = false;
+    recognition = null;
     setVoiceState('idle');
     if (e.error === 'not-allowed') {
       alert('請允許麥克風權限：\n點網址列左側鎖頭 → 麥克風 → 允許，然後重新整理頁面。');
-      recognition = null;
-    } else if (e.error === 'network') {
-      alert('語音辨識需要網路連線');
+    } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
+      console.log('Speech error:', e.error);
     }
   };
-  return true;
+  return r;
 }
 
 function startListening() {
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-  if (!initRecognitionOnce()) return;
-  // Reset accumulated text
+  if (isListening) return;
+  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert('您的瀏覽器不支援語音辨識。\n請使用 Chrome 瀏覽器開啟。');
+    return;
+  }
+  recognition = createRecognition();
+  if (!recognition) return;
   try {
     recognition.start();
   } catch(e) {
-    if (e.name === 'InvalidStateError') {
-      // Already started or ended - just wait for onend
-      console.log('Recognition busy, waiting...');
-    } else {
-      console.log('Recognition error:', e.name);
-      setVoiceState('idle');
-    }
+    console.log('Recognition start error:', e.name);
+    recognition = null;
+    setVoiceState('idle');
   }
 }
 
@@ -1232,7 +1214,6 @@ function extractJpOnly(text) {
 }
 
 function speakAndListen(text) {
-  if (!window.speechSynthesis && !googleTTS) { setVoiceState('idle'); return; }
   var jpText = extractJpOnly(text);
   if (!jpText) { setVoiceState('idle'); return; }
   isSpeaking = true;
